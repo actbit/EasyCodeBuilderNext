@@ -20,5 +20,12 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Avalonia.Xaml.Interactions" />
+    <PackageReference Include="Avalonia.Xaml.Interactions.DragAndDrop" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EasyCodeBuilderNext.Core\EasyCodeBuilderNext.Core.csproj" />
+    <ProjectReference Include="..\EasyCodeBuilderNext.Plugins.Abstractions\EasyCodeBuilderNext.Plugins.Abstractions.csproj" />
   </ItemGroup>
 </Project>
