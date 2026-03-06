@@ -3,14 +3,133 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:EasyCodeBuilderNext.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:controls="clr-namespace:EasyCodeBuilderNext.Controls"
+             xmlns:models="clr-namespace:EasyCodeBuilderNext.Core.Models;assembly=EasyCodeBuilderNext.Core"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="750"
              x:Class="EasyCodeBuilderNext.Views.MainView"
              x:DataType="vm:MainViewModel">
-  <Design.DataContext>
-    <!-- This only sets the DataContext for the previewer in an IDE,
-         to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-    <vm:MainViewModel />
-  </Design.DataContext>
 
-  <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+  <UserControl.Resources>
+    <controls:CategoryToColorConverter x:Key="CategoryToColorConverter"/>
+  </UserControl.Resources>
+
+  <Grid ColumnDefinitions="200,250,*,300">
+    <!-- 左パネル: オブジェクトリスト -->
+    <Border Grid.Column="0" Background="#F5F5F5" BorderBrush="#DDD" BorderThickness="0,0,1,0">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0" Text="オブジェクト" FontWeight="Bold"
+                   Padding="8" Background="#E0E0E0"/>
+        <controls:ObjectList Grid.Row="1"
+                             Objects="{Binding Project.Objects}"
+                             SelectedObject="{Binding SelectedObject}"/>
+      </Grid>
+    </Border>
+
+    <!-- ブロックパレット -->
+    <Border Grid.Column="1" Background="#FAFAFA" BorderBrush="#DDD" BorderThickness="0,0,1,0">
+      <Grid RowDefinitions="Auto,Auto,*">
+        <TextBlock Grid.Row="0" Text="ブロック" FontWeight="Bold"
+                   Padding="8" Background="#E0E0E0"/>
+
+        <!-- 検索ボックス -->
+        <TextBox Grid.Row="1" Text="{Binding SearchQuery}"
+                 Watermark="ブロックを検索..."
+                 Margin="4" Padding="8,4"/>
+
+        <!-- ブロックテンプレートリスト -->
+        <ScrollViewer Grid.Row="2">
+          <ItemsControl ItemsSource="{Binding BlockTemplates}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{Binding Category, Converter={StaticResource CategoryToColorConverter}}"
+                        CornerRadius="8" Padding="8,6" Margin="4,2"
+                        Cursor="Hand">
+                  <Border.GestureRecognizers>
+                    <TappedEventArgs Command="{Binding $parent[MainView].((vm:MainViewModel)DataContext).AddBlockCommand}"
+                                    CommandParameter="{Binding}"/>
+                  </Border.GestureRecognizers>
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding DisplayName}"
+                               Foreground="White" FontSize="12"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Description}"
+                               Foreground="#FFFFFF80" FontSize="10"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+    <!-- 中央: ブロックキャンバス / クラスダイアグラム -->
+    <Grid Grid.Column="2" RowDefinitions="Auto,*">
+      <!-- 現在のオブジェクト名 -->
+      <Border Grid.Row="0" Background="#4C97FF" Padding="8,4">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="現在のオブジェクト:" Foreground="White" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding SelectedObject.Name}" Foreground="White"
+                     FontWeight="Bold" VerticalAlignment="Center"/>
+          <Button Content="クラスダイアグラム" Command="{Binding ShowClassDiagramCommand}"
+                  Background="#FFFFFF30" Foreground="White" Padding="8,2"
+                  IsVisible="{Binding !IsClassDiagramVisible}"/>
+        </StackPanel>
+      </Border>
+
+      <!-- タブ切り替え -->
+      <Grid Grid.Row="1" IsVisible="{Binding !IsClassDiagramVisible}">
+        <ScrollViewer Background="#FFFFFF">
+          <controls:CodeCanvas Blocks="{Binding SelectedObject.Blocks}"
+                               SelectedBlock="{Binding SelectedBlock}"
+                               SnapThreshold="20">
+            <ItemsControl ItemsSource="{Binding SelectedObject.Blocks}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <Canvas/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <controls:PuzzleBlock Block="{Binding}"
+                                        Canvas.Left="{Binding X}"
+                                        Canvas.Top="{Binding Y}"
+                                        IsSelected="{Binding IsSelected}"
+                                        IsDragging="{Binding IsDragging}"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </controls:CodeCanvas>
+        </ScrollViewer>
+      </Grid>
+
+      <!-- クラスダイアグラムビュー -->
+      <controls:ClassDiagramView Grid.Row="1"
+                                 Objects="{Binding Project.Objects}"
+                                 Project="{Binding Project}"
+                                 IsVisible="{Binding IsClassDiagramVisible}"/>
+    </Grid>
+
+    <!-- 右パネル: コードプレビュー -->
+    <Border Grid.Column="3" Background="#1E1E1E" BorderBrush="#333" BorderThickness="1,0,0,0">
+      <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0" Background="#2D2D2D" Padding="8,4">
+          <TextBlock Text="コードプレビュー" Foreground="White" FontWeight="Bold"/>
+        </Border>
+        <TextBox Grid.Row="1"
+                 Text="{Binding GeneratedCode}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 AcceptsTab="True"
+                 FontFamily="Consolas,monospace"
+                 FontSize="12"
+                 Foreground="#D4D4D4"
+                 Background="#1E1E1E"
+                 BorderThickness="0"
+                 Padding="8"/>
+      </Grid>
+    </Border>
+  </Grid>
 </UserControl>

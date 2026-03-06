@@ -4,9 +4,53 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:views="clr-namespace:EasyCodeBuilderNext.Views"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:controls="clr-namespace:EasyCodeBuilderNext.Controls"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         x:Class="EasyCodeBuilderNext.Views.MainWindow"
         Icon="/Assets/avalonia-logo.ico"
-        Title="EasyCodeBuilderNext">
-        <views:MainView />
+        Title="EasyCodeBuilderNext - Scratch風ビジュアルプログラミング環境"
+        Width="1200" Height="800"
+        MinWidth="800" MinHeight="600">
+
+  <Design.DataContext>
+    <vm:MainViewModel/>
+  </Design.DataContext>
+
+  <Grid RowDefinitions="Auto,*">
+    <!-- メニューバー -->
+    <Menu Grid.Row="0" Padding="4">
+      <MenuItem Header="ファイル(_F)">
+        <MenuItem Header="新規プロジェクト(_N)" Command="{Binding NewProjectCommand}"/>
+        <MenuItem Header="プロジェクトを開く(_O)..." Command="{Binding LoadProjectCommand}"/>
+        <MenuItem Header="プロジェクトを保存(_S)..." Command="{Binding SaveProjectCommand}"/>
+        <Separator/>
+        <MenuItem Header="終了(_X)" Command="{Binding ExitCommand}"/>
+      </MenuItem>
+      <MenuItem Header="編集(_E)">
+        <MenuItem Header="元に戻す(_U)" Command="{Binding UndoCommand}"/>
+        <MenuItem Header="やり直し(_R)" Command="{Binding RedoCommand}"/>
+        <Separator/>
+        <MenuItem Header="削除(_D)" Command="{Binding DeleteBlockCommand}" InputGesture="Delete"/>
+      </MenuItem>
+      <MenuItem Header="表示(_V)">
+        <MenuItem Header="クラスダイアグラム(_C)" Command="{Binding ShowClassDiagramCommand}" IsChecked="{Binding IsClassDiagramVisible}"/>
+        <Separator/>
+        <MenuItem Header="コードプレビュー(_P)" Command="{Binding ToggleCodePreviewCommand}"/>
+      </MenuItem>
+      <MenuItem Header="実行(_R)">
+        <MenuItem Header="コード生成(_G)" Command="{Binding GenerateCodeCommand}" InputGesture="Ctrl+G"/>
+        <MenuItem Header="実行(_E)" Command="{Binding RunCodeCommand}" InputGesture="F5"/>
+        <MenuItem Header="EXE出力(_X)..." Command="{Binding ExportExeCommand}"/>
+      </MenuItem>
+      <MenuItem Header="ツール(_T)">
+        <MenuItem Header="DLL読み込み..." Command="{Binding LoadDllCommand}"/>
+      </MenuItem>
+      <MenuItem Header="ヘルプ(_H)">
+        <MenuItem Header="バージョン情報(_A)..." Command="{Binding AboutCommand}"/>
+      </MenuItem>
+    </Menu>
+
+    <!-- メインコンテンツ -->
+    <views:MainView Grid.Row="1"/>
+  </Grid>
 </Window>

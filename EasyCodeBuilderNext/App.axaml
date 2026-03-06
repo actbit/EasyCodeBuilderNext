@@ -1,15 +1,79 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:EasyCodeBuilderNext"
+             xmlns:controls="clr-namespace:EasyCodeBuilderNext.Controls"
              x:Class="EasyCodeBuilderNext.App"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             RequestedThemeVariant="Light">
 
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
 
+    <Application.Resources>
+        <controls:CategoryToColorConverter x:Key="CategoryToColorConverter"/>
+        <controls:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <controls:MemberKindToIconConverter x:Key="MemberKindToIconConverter"/>
+        <controls:MemberKindToOpacityConverter x:Key="MemberKindToOpacityConverter"/>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
+
+        <!-- パズルブロックスタイル -->
+        <Style Selector="controls|PuzzleBlock">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style Selector="controls|PuzzleBlock:pointerover /template/ ContentPresenter">
+            <Setter Property="Opacity" Value="0.9"/>
+        </Style>
+
+        <Style Selector="controls|PuzzleBlock:selected">
+            <Setter Property="BoxShadow" Value="0 0 0 2px #4C97FF"/>
+        </Style>
+
+        <Style Selector="controls|PuzzleBlock:dragging">
+            <Setter Property="Opacity" Value="0.7"/>
+            <Setter Property="ZIndex" Value="1000"/>
+        </Style>
+
+        <Style Selector="controls|PuzzleBlock:snaptarget">
+            <Setter Property="BoxShadow" Value="0 0 0 3px #59C059"/>
+        </Style>
+
+        <!-- コードキャンバススタイル -->
+        <Style Selector="controls|CodeCanvas">
+            <Setter Property="Background" Value="#F8F8F8"/>
+        </Style>
+
+        <!-- メニュースタイル -->
+        <Style Selector="Menu">
+            <Setter Property="Background" Value="#F0F0F0"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <!-- オブジェクトリストスタイル -->
+        <Style Selector="controls|ObjectList ListBoxItem">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style Selector="controls|ObjectList ListBoxItem:selected">
+            <Setter Property="Background" Value="#4C97FF"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- クラスダイアグラムスタイル -->
+        <Style Selector="controls|ClassDiagramView Border.class-box">
+            <Setter Property="Effect">
+                <DropShadowEffect BlurRadius="4" OffsetX="2" OffsetY="2" Opacity="0.3"/>
+            </Setter>
+        </Style>
     </Application.Styles>
 </Application>
