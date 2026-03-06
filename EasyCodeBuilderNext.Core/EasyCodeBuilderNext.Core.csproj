@@ -12,4 +12,8 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\EasyCodeBuilderNext.Plugins.Abstractions\EasyCodeBuilderNext.Plugins.Abstractions.csproj" />
+  </ItemGroup>
+
 </Project>

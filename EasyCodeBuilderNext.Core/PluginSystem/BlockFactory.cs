@@ -46,7 +46,7 @@ public class BlockFactory
         if (_pluginLoader == null)
             return;
 
-        foreach (var provider in _pluginLoader.LoadedBlockProviders)
+        foreach (var provider in _pluginLoader.BlockProviders)
         {
             try
             {

@@ -1,4 +1,5 @@
 using EasyCodeBuilderNext.Core.Blocks;
+using EasyCodeBuilderNext.Core.Blocks.Statements;
 using EasyCodeBuilderNext.Core.Models;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -191,7 +192,7 @@ public class RoslynCodeGenerator
     /// <summary>
     /// アクセシビリティを文字列に変換
     /// </summary>
-    private static string GetAccessibilityString(Accessibility accessibility)
+    private static string GetAccessibilityString(Models.Accessibility accessibility)
     {
         return accessibility switch
         {
@@ -365,7 +366,7 @@ public class RoslynCodeGenerator
         foreach (var block in rootBlocks)
         {
             // メソッド定義ブロックからメソッドを生成
-            if (block is Statements.MethodDefineBlock methodBlock)
+            if (block is BlockBaseStatements.MethodDefineBlock methodBlock)
             {
                 yield return GenerateMethodFromBlock(methodBlock);
             }
