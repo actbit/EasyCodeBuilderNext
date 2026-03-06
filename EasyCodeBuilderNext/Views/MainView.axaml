@@ -4,13 +4,16 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:EasyCodeBuilderNext.ViewModels"
              xmlns:controls="clr-namespace:EasyCodeBuilderNext.Controls"
+             xmlns:converters="clr-namespace:EasyCodeBuilderNext.Converters"
              xmlns:models="clr-namespace:EasyCodeBuilderNext.Core.Models;assembly=EasyCodeBuilderNext.Core"
+             xmlns:plugin="clr-namespace:EasyCodeBuilderNext.Core.PluginSystem;assembly=EasyCodeBuilderNext.Core"
+             xmlns:blocks="clr-namespace:EasyCodeBuilderNext.Core.Blocks;assembly=EasyCodeBuilderNext.Core"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="750"
              x:Class="EasyCodeBuilderNext.Views.MainView"
              x:DataType="vm:MainViewModel">
 
   <UserControl.Resources>
-    <controls:CategoryToColorConverter x:Key="CategoryToColorConverter"/>
+    <converters:CategoryToColorConverter x:Key="CategoryToColorConverter"/>
   </UserControl.Resources>
 
   <Grid ColumnDefinitions="200,250,*,300">
@@ -40,14 +43,12 @@
         <ScrollViewer Grid.Row="2">
           <ItemsControl ItemsSource="{Binding BlockTemplates}">
             <ItemsControl.ItemTemplate>
-              <DataTemplate>
+              <DataTemplate x:DataType="plugin:BlockTemplate">
                 <Border Background="{Binding Category, Converter={StaticResource CategoryToColorConverter}}"
                         CornerRadius="8" Padding="8,6" Margin="4,2"
-                        Cursor="Hand">
-                  <Border.GestureRecognizers>
-                    <TappedEventArgs Command="{Binding $parent[MainView].((vm:MainViewModel)DataContext).AddBlockCommand}"
-                                    CommandParameter="{Binding}"/>
-                  </Border.GestureRecognizers>
+                        Cursor="Hand"
+                        Tapped="OnBlockTapped"
+                        Tag="{Binding}">
                   <StackPanel Spacing="2">
                     <TextBlock Text="{Binding DisplayName}"
                                Foreground="White" FontSize="12"
@@ -92,7 +93,7 @@
                 </ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
-                <DataTemplate>
+                <DataTemplate x:DataType="blocks:BlockBase">
                   <controls:PuzzleBlock Block="{Binding}"
                                         Canvas.Left="{Binding X}"
                                         Canvas.Top="{Binding Y}"

@@ -7,6 +7,7 @@
         xmlns:controls="clr-namespace:EasyCodeBuilderNext.Controls"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         x:Class="EasyCodeBuilderNext.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="EasyCodeBuilderNext - Scratch風ビジュアルプログラミング環境"
         Width="1200" Height="800"
