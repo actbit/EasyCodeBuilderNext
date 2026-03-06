@@ -1,10 +1,8 @@
 using EasyCodeBuilderNext.Core.Blocks;
-using EasyCodeBuilderNext.Core.Blocks.Expressions;
 using EasyCodeBuilderNext.Core.Blocks.Statements;
 using EasyCodeBuilderNext.Core.Models;
-using EasyCodeBuilderNext.Plugins.Abstractions;
+using EasyCodeBuilderNext.Core.TypeSystem;
 using System.Collections.ObjectModel;
-using System.Reflection;
 
 namespace EasyCodeBuilderNext.Core.PluginSystem;
 
@@ -13,8 +11,10 @@ namespace EasyCodeBuilderNext.Core.PluginSystem;
 /// </summary>
 public class BlockFactory
 {
-    private readonly TypeRegistry _typeRegistry;
-    private readonly PluginLoader _pluginLoader;
+    private readonly TypeRegistry? _typeRegistry;
+    private readonly PluginLoader? _pluginLoader;
+
+    public BlockFactory() { }
 
     public BlockFactory(TypeRegistry typeRegistry, PluginLoader pluginLoader)
     {
@@ -32,13 +32,34 @@ public class BlockFactory
         // 標準ブロック
         AddStandardBlocks(templates);
 
-        // プラグインブロック
+        // プラグインからブロックを追加
         AddPluginBlocks(templates);
 
-        // 登録済み型からのブロック
-        AddTypeBlocks(templates);
-
         return templates;
+    }
+
+    /// <summary>
+    /// プラグインからブロックを追加
+    /// </summary>
+    private void AddPluginBlocks(ObservableCollection<BlockTemplate> templates)
+    {
+        if (_pluginLoader == null)
+            return;
+
+        foreach (var provider in _pluginLoader.LoadedBlockProviders)
+        {
+            try
+            {
+                foreach (var blockTemplate in provider.GetBlockTemplates())
+                {
+                    templates.Add(blockTemplate);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"プラグインブロック読み込みエラー: {ex.Message}");
+            }
+        }
     }
 
     private void AddStandardBlocks(ObservableCollection<BlockTemplate> templates)
@@ -185,133 +206,6 @@ public class BlockFactory
             "数値を入力",
             BlockCategory.IO,
             () => new ConsoleReadIntBlock()));
-
-        // 演算子カテゴリ
-        templates.Add(new BlockTemplate(
-            "NumberLiteral",
-            "数値",
-            BlockCategory.Operators,
-            () => new NumberLiteralBlock()));
-
-        templates.Add(new BlockTemplate(
-            "StringLiteral",
-            "文字列",
-            BlockCategory.Operators,
-            () => new StringLiteralBlock()));
-
-        templates.Add(new BlockTemplate(
-            "BooleanLiteral",
-            "真偽値",
-            BlockCategory.Operators,
-            () => new BooleanLiteralBlock()));
-
-        templates.Add(new BlockTemplate(
-            "VariableReference",
-            "変数",
-            BlockCategory.Operators,
-            () => new VariableReferenceBlock()));
-
-        templates.Add(new BlockTemplate(
-            "Comparison",
-            "比較",
-            BlockCategory.Operators,
-            () => new ComparisonBlock()));
-
-        templates.Add(new BlockTemplate(
-            "Arithmetic",
-            "計算",
-            BlockCategory.Operators,
-            () => new ArithmeticBlock()));
-
-        templates.Add(new BlockTemplate(
-            "Logical",
-            "論理演算",
-            BlockCategory.Operators,
-            () => new LogicalBlock()));
-
-        templates.Add(new BlockTemplate(
-            "Not",
-            "否定",
-            BlockCategory.Operators,
-            () => new NotBlock()));
-    }
-
-    private void AddPluginBlocks(ObservableCollection<BlockTemplate> templates)
-    {
-        foreach (var provider in _pluginLoader.BlockProviders)
-        {
-            foreach (var blockType in provider.GetBlockTypes())
-            {
-                var capturedProvider = provider;
-                var capturedBlockType = blockType;
-
-                templates.Add(new BlockTemplate(
-                    blockType.Id,
-                    blockType.DisplayName,
-                    blockType.Category,
-                    () => capturedProvider.CreateBlock(capturedBlockType.Id),
-                    blockType.Description,
-                    blockType.Icon));
-            }
-        }
-    }
-
-    private void AddTypeBlocks(ObservableCollection<BlockTemplate> templates)
-    {
-        foreach (var typeInfo in _typeRegistry.RegisteredTypes.Values)
-        {
-            // 型ごとのメンバーアクセスブロックを生成
-            foreach (var member in _typeRegistry.GetTypeMembers(typeInfo.FullName))
-            {
-                var capturedTypeInfo = typeInfo;
-                var capturedMember = member;
-
-                if (member.Kind is MemberKind.InstanceMethod or MemberKind.StaticMethod)
-                {
-                    templates.Add(new BlockTemplate(
-                        $"{typeInfo.FullName}.{member.Name}",
-                        $"{typeInfo.Name}.{member.Name}",
-                        BlockCategory.Custom,
-                        () => CreateMemberAccessBlock(capturedTypeInfo, capturedMember),
-                        $"{typeInfo.FullName}のメソッド",
-                        member.IsStatic ? "⚡" : "▶"));
-                }
-                else if (member.Kind == MemberKind.Property)
-                {
-                    templates.Add(new BlockTemplate(
-                        $"{typeInfo.FullName}.{member.Name}",
-                        $"{typeInfo.Name}.{member.Name}",
-                        BlockCategory.Custom,
-                        () => CreatePropertyAccessBlock(capturedTypeInfo, capturedMember),
-                        $"{typeInfo.FullName}のプロパティ",
-                        "🔷"));
-                }
-            }
-        }
-    }
-
-    private BlockBase CreateMemberAccessBlock(TypeInfo typeInfo, MemberInfo member)
-    {
-        var block = new MethodCallBlock();
-        block.Parameters[0].Value = typeInfo.Name;
-        block.Parameters[1].Value = member.Name;
-
-        // パラメータを設定
-        if (member.Parameters.Count > 0)
-        {
-            block.Parameters[2].Value = string.Join(", ",
-                member.Parameters.Select(p => $"{p.TypeName} {p.Name}"));
-        }
-
-        return block;
-    }
-
-    private BlockBase CreatePropertyAccessBlock(TypeInfo typeInfo, MemberInfo member)
-    {
-        var block = new PropertyAccessBlock();
-        block.Parameters[0].Value = typeInfo.Name;
-        block.Parameters[1].Value = member.Name;
-        return block;
     }
 }
 
