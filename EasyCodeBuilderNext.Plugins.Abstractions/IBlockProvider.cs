@@ -1,6 +1,3 @@
-using EasyCodeBuilderNext.Core.Blocks;
-using EasyCodeBuilderNext.Core.Models;
-
 namespace EasyCodeBuilderNext.Plugins.Abstractions;
 
 /// <summary>
@@ -32,7 +29,7 @@ public interface IBlockProvider
     /// <summary>
     /// 指定されたブロックタイプのインスタンスを作成
     /// </summary>
-    BlockBase CreateBlock(string blockTypeId);
+    object CreateBlock(string blockTypeId);
 
     /// <summary>
     /// 初期化処理
@@ -58,7 +55,7 @@ public class BlockTypeInfo
     /// <summary>
     /// カテゴリ
     /// </summary>
-    public BlockCategory Category { get; set; } = BlockCategory.Custom;
+    public PluginBlockCategory Category { get; set; } = PluginBlockCategory.Custom;
 
     /// <summary>
     /// 説明
@@ -69,4 +66,20 @@ public class BlockTypeInfo
     /// アイコン（Unicodeまたは画像パス）
     /// </summary>
     public string? Icon { get; set; }
+}
+
+/// <summary>
+/// プラグイン用ブロックカテゴリ
+/// </summary>
+public enum PluginBlockCategory
+{
+    Variables,
+    Control,
+    Methods,
+    Classes,
+    IO,
+    Data,
+    Custom,
+    Operators,
+    Events
 }

@@ -1,5 +1,3 @@
-using EasyCodeBuilderNext.Core.Models;
-
 namespace EasyCodeBuilderNext.Plugins.Abstractions;
 
 /// <summary>
@@ -16,28 +14,28 @@ public interface ITypeProvider
     /// <summary>
     /// 読み込み済みの型一覧を取得
     /// </summary>
-    IEnumerable<TypeInfo> GetLoadedTypes();
+    IEnumerable<PluginTypeInfo> GetLoadedTypes();
 
     /// <summary>
     /// 指定されたDLLから型を読み込む
     /// </summary>
-    IEnumerable<TypeInfo> LoadTypesFromAssembly(string assemblyPath);
+    IEnumerable<PluginTypeInfo> LoadTypesFromAssembly(string assemblyPath);
 
     /// <summary>
     /// 型を検索
     /// </summary>
-    IEnumerable<TypeInfo> SearchTypes(string query);
+    IEnumerable<PluginTypeInfo> SearchTypes(string query);
 
     /// <summary>
     /// 指定された型のメンバー情報を取得
     /// </summary>
-    IEnumerable<MemberTypeInfo> GetTypeMembers(string fullTypeName);
+    IEnumerable<PluginMemberInfo> GetTypeMembers(string fullTypeName);
 }
 
 /// <summary>
-/// 型情報
+/// プラグイン用型情報
 /// </summary>
-public class TypeInfo
+public class PluginTypeInfo
 {
     /// <summary>
     /// 完全修飾型名
@@ -72,7 +70,7 @@ public class TypeInfo
     /// <summary>
     /// 型の種類
     /// </summary>
-    public TypeKind Kind { get; set; }
+    public PluginTypeKind Kind { get; set; }
 
     /// <summary>
     /// パブリックかどうか
@@ -101,9 +99,9 @@ public class TypeInfo
 }
 
 /// <summary>
-/// 型の種類
+/// プラグイン用型の種類
 /// </summary>
-public enum TypeKind
+public enum PluginTypeKind
 {
     Class,
     Interface,
@@ -113,9 +111,9 @@ public enum TypeKind
 }
 
 /// <summary>
-/// メンバー型情報
+/// プラグイン用メンバー情報
 /// </summary>
-public class MemberTypeInfo
+public class PluginMemberInfo
 {
     /// <summary>
     /// メンバー名
@@ -135,7 +133,7 @@ public class MemberTypeInfo
     /// <summary>
     /// パラメータ（メソッド用）
     /// </summary>
-    public List<ParameterTypeInfo> Parameters { get; set; } = new();
+    public List<PluginParameterInfo> Parameters { get; set; } = new();
 
     /// <summary>
     /// 静的メンバーかどうか
@@ -149,9 +147,9 @@ public class MemberTypeInfo
 }
 
 /// <summary>
-/// パラメータ型情報
+/// プラグイン用パラメータ情報
 /// </summary>
-public class ParameterTypeInfo
+public class PluginParameterInfo
 {
     /// <summary>
     /// パラメータ名
