@@ -50,9 +50,17 @@ public class BlockFactory
         {
             try
             {
-                foreach (var blockTemplate in provider.GetBlockTemplates())
+                foreach (var blockType in provider.GetBlockTypes())
                 {
-                    templates.Add(blockTemplate);
+                    var blockId = blockType.Id;
+                    templates.Add(new BlockTemplate(
+                        blockType.Id,
+                        blockType.DisplayName,
+                        ConvertCategory(blockType.Category),
+                        () => provider.CreateBlock(blockId) as BlockBase ?? new VariableDeclareBlock(),
+                        blockType.Description,
+                        blockType.Icon
+                    ));
                 }
             }
             catch (Exception ex)
@@ -60,6 +68,26 @@ public class BlockFactory
                 System.Diagnostics.Debug.WriteLine($"プラグインブロック読み込みエラー: {ex.Message}");
             }
         }
+    }
+
+    /// <summary>
+    /// プラグインカテゴリを内部カテゴリに変換
+    /// </summary>
+    private static BlockCategory ConvertCategory(Plugins.Abstractions.PluginBlockCategory category)
+    {
+        return category switch
+        {
+            Plugins.Abstractions.PluginBlockCategory.Variables => BlockCategory.Variables,
+            Plugins.Abstractions.PluginBlockCategory.Control => BlockCategory.Control,
+            Plugins.Abstractions.PluginBlockCategory.Methods => BlockCategory.Methods,
+            Plugins.Abstractions.PluginBlockCategory.Classes => BlockCategory.Classes,
+            Plugins.Abstractions.PluginBlockCategory.IO => BlockCategory.IO,
+            Plugins.Abstractions.PluginBlockCategory.Data => BlockCategory.Data,
+            Plugins.Abstractions.PluginBlockCategory.Custom => BlockCategory.Custom,
+            Plugins.Abstractions.PluginBlockCategory.Operators => BlockCategory.Operators,
+            Plugins.Abstractions.PluginBlockCategory.Events => BlockCategory.Events,
+            _ => BlockCategory.Custom
+        };
     }
 
     private void AddStandardBlocks(ObservableCollection<BlockTemplate> templates)

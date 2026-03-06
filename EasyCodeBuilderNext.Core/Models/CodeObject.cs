@@ -114,13 +114,55 @@ public enum Accessibility
 public enum MemberKind
 {
     Field,
+    InstanceField,
+    StaticField,
     Property,
     Method,
+    InstanceMethod,
+    StaticMethod,
     Event,
     Constructor,
     Destructor,
     Indexer,
     Operator
+}
+
+/// <summary>
+/// MemberKindの拡張メソッド
+/// </summary>
+public static class MemberKindExtensions
+{
+    /// <summary>
+    /// メンバー種類に対応するアイコンを取得
+    /// </summary>
+    public static string GetIcon(this MemberKind kind)
+    {
+        return kind switch
+        {
+            MemberKind.Field => "📝",
+            MemberKind.InstanceField => "📝",
+            MemberKind.StaticField => "⚡📝",
+            MemberKind.Property => "🔷",
+            MemberKind.Method => "▶",
+            MemberKind.InstanceMethod => "▶",
+            MemberKind.StaticMethod => "⚡▶",
+            MemberKind.Event => "⚡",
+            MemberKind.Constructor => "🔧",
+            MemberKind.Destructor => "🗑",
+            MemberKind.Indexer => "📋",
+            MemberKind.Operator => "➕",
+            _ => "📄"
+        };
+    }
+
+    /// <summary>
+    /// 彩度を下げるべきかどうか（静的メンバー用）
+    /// </summary>
+    public static bool ShouldDesaturate(this MemberKind kind)
+    {
+        // 静的メンバーの場合は彩度を下げる（ここではデフォルトでfalse）
+        return false;
+    }
 }
 
 /// <summary>
