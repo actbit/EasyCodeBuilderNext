@@ -1,5 +1,6 @@
 using EasyCodeBuilderNext.Core.Blocks.Expressions;
 using EasyCodeBuilderNext.Core.Models;
+using System.Collections.ObjectModel;
 
 namespace EasyCodeBuilderNext.Core.Blocks.Statements;
 
@@ -130,15 +131,19 @@ public class FieldDefineBlock : BlockBase
             Value = "field"
         });
 
-        Parameters.Add(new BlockParameter
+        var accessParam = new BlockParameter
         {
             Name = "AccessModifier",
             Label = "アクセス修飾子",
             TypeName = "string",
             InputType = ParameterInputType.Dropdown,
-            Value = "private",
-            Options = new ObservableCollection<string> { "public", "private", "protected", "internal" }
-        });
+            Value = "private"
+        };
+        accessParam.Options.Add("public");
+        accessParam.Options.Add("private");
+        accessParam.Options.Add("protected");
+        accessParam.Options.Add("internal");
+        Parameters.Add(accessParam);
 
         Parameters.Add(new BlockParameter
         {
@@ -233,15 +238,19 @@ public class PropertyDefineBlock : BlockBase
             Value = "Property"
         });
 
-        Parameters.Add(new BlockParameter
+        var accessParam = new BlockParameter
         {
             Name = "AccessModifier",
             Label = "アクセス修飾子",
             TypeName = "string",
             InputType = ParameterInputType.Dropdown,
-            Value = "public",
-            Options = new ObservableCollection<string> { "public", "private", "protected", "internal" }
-        });
+            Value = "public"
+        };
+        accessParam.Options.Add("public");
+        accessParam.Options.Add("private");
+        accessParam.Options.Add("protected");
+        accessParam.Options.Add("internal");
+        Parameters.Add(accessParam);
 
         Parameters.Add(new BlockParameter
         {
