@@ -196,12 +196,12 @@ public class RoslynCodeGenerator
     {
         return accessibility switch
         {
-            Accessibility.Public => "public",
-            Accessibility.Private => "private",
-            Accessibility.Protected => "protected",
-            Accessibility.Internal => "internal",
-            Accessibility.ProtectedInternal => "protected internal",
-            Accessibility.PrivateProtected => "private protected",
+            Models.Accessibility.Public => "public",
+            Models.Accessibility.Private => "private",
+            Models.Accessibility.Protected => "protected",
+            Models.Accessibility.Internal => "internal",
+            Models.Accessibility.ProtectedInternal => "protected internal",
+            Models.Accessibility.PrivateProtected => "private protected",
             _ => "public"
         };
     }
@@ -321,7 +321,7 @@ public class RoslynCodeGenerator
             SyntaxFactory.ParseTypeName(member.ReturnType),
             member.Name)
             .WithModifiers(SyntaxFactory.TokenList(modifiers))
-            .WithAccessors(accessors);
+            .WithAccessorList(accessors);
     }
 
     /// <summary>

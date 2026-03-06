@@ -173,11 +173,12 @@ public class RoslynCompiler : IDisposable
                 _loadContext = new AssemblyLoadContext(assemblyName, isCollectible: true);
                 result.Assembly = _loadContext.LoadFromStream(memoryStream);
 
-                // エントリーポイントを取得
-                result.EntryPoint = compilation.GetEntryPoint(System.Globalization.CultureInfo.InvariantCulture)?
-                    .DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax methodSyntax
-                    ? result.Assembly.GetType(methodSyntax.Identifier.Text)?.GetMethod("Main", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                    : null;
+                // エントリーポイントを取得（簡略化）
+                // Mainメソッドはアセンブリ内の型から直接探す
+                var entryPointMethod = result.Assembly.GetTypes()
+                    .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+                    .FirstOrDefault(m => m.Name == "Main");
+                result.EntryPoint = entryPointMethod;
             }
             else
             {
