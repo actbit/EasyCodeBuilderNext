@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using EasyCodeBuilderNext.Core.Blocks;
 using System.Collections.ObjectModel;
 
 namespace EasyCodeBuilderNext.Core.Models;
@@ -105,6 +106,21 @@ public enum Accessibility
     Internal,
     ProtectedInternal,
     PrivateProtected
+}
+
+/// <summary>
+/// メンバーの種類
+/// </summary>
+public enum MemberKind
+{
+    Field,
+    Property,
+    Method,
+    Event,
+    Constructor,
+    Destructor,
+    Indexer,
+    Operator
 }
 
 /// <summary>
