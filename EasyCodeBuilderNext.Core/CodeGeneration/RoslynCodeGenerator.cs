@@ -4,377 +4,404 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.ObjectModel;
+using System.Text;
 
 namespace EasyCodeBuilderNext.Core.CodeGeneration;
 
 /// <summary>
-/// Roslynを使用したコード生成クラス
+/// Roslynを使用したコード生成器
 /// </summary>
 public class RoslynCodeGenerator
 {
     /// <summary>
-    /// プロジェクトから完全なC#コードを生成
+    /// プロジェクト全体からコードを生成
     /// </summary>
     public string GenerateCode(Project project)
     {
-        var usings = project.Usings.Select(u => SyntaxFactory.UsingDirective(
-            SyntaxFactory.ParseName(u))).ToArray();
+        var sb = new StringBuilder();
+        sb.AppendLine("// 自動生成されたコード");
+        sb.AppendLine("// EasyCodeBuilderNext");
+        sb.AppendLine();
 
-        var namespaceDeclaration = SyntaxFactory.NamespaceDeclaration(
-            SyntaxFactory.ParseName(project.DefaultNamespace));
+        // usingディレクティブ
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.Linq;");
+        sb.AppendLine();
+
+        // 名前空間
+        sb.AppendLine($"namespace {project.DefaultNamespace}");
+        sb.AppendLine("{");
 
         foreach (var obj in project.Objects)
         {
-            var classDeclaration = GenerateClass(obj);
-            namespaceDeclaration = namespaceDeclaration.AddMembers(classDeclaration);
+            var classCode = GenerateClassCode(obj, 1);
+            sb.AppendLine(classCode);
         }
 
-        var compilationUnit = SyntaxFactory.CompilationUnit()
-            .AddUsings(usings)
-            .AddMembers(namespaceDeclaration);
+        sb.AppendLine("}");
 
-        return compilationUnit.NormalizeWhitespace().ToFullString();
+        return sb.ToString();
     }
 
     /// <summary>
-    /// 単一のオブジェクト（クラス）からコードを生成
+    /// 単一のオブジェクトからコードを生成
     /// </summary>
     public string GenerateCode(CodeObject obj)
     {
-        var usings = new[]
+        var sb = new StringBuilder();
+        sb.AppendLine("// 自動生成されたコード");
+        sb.AppendLine("// EasyCodeBuilderNext");
+        sb.AppendLine();
+
+        // usingディレクティブ
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.Linq;");
+        sb.AppendLine();
+
+        // 名前空間
+        sb.AppendLine($"namespace {obj.Namespace}");
+        sb.AppendLine("{");
+
+        var classCode = GenerateClassCode(obj, 1);
+        sb.AppendLine(classCode);
+
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// クラスコードを生成
+    /// </summary>
+    private string GenerateClassCode(CodeObject obj, int indentLevel)
+    {
+        var indent = new string(' ', indentLevel * 4);
+        var sb = new StringBuilder();
+
+        // クラス修飾子
+        var modifiers = new List<string> { GetAccessibilityString(obj.Accessibility) };
+        if (obj.IsStatic) modifiers.Add("static");
+        if (obj.IsAbstract) modifiers.Add("abstract");
+        if (obj.IsSealed) modifiers.Add("sealed");
+
+        var modifierStr = string.Join(" ", modifiers);
+
+        // 継承
+        var inheritance = new List<string>();
+        if (!string.IsNullOrEmpty(obj.BaseClassName)) inheritance.Add(obj.BaseClassName);
+        foreach (var iface in obj.ImplementedInterfaces)
+        {
+            inheritance.Add(iface);
+        }
+        var inheritanceStr = inheritance.Count > 0 ? " : " + string.Join(", ", inheritance) : "";
+
+        sb.AppendLine($"{indent}{modifierStr} class {obj.Name}{inheritanceStr}");
+        sb.AppendLine($"{indent}{{");
+
+        // メンバー（フィールド、プロパティ、メソッド）
+        foreach (var member in obj.Members)
+        {
+            var memberCode = GenerateMemberCode(member, indentLevel + 1);
+            sb.AppendLine(memberCode);
+        }
+
+        // ブロックからのコード生成
+        foreach (var block in obj.Blocks)
+        {
+            var blockCode = block.CodeOutput(indentLevel + 1);
+            sb.AppendLine(blockCode);
+        }
+
+        sb.AppendLine($"{indent}}}");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// メンバーコードを生成
+    /// </summary>
+    private string GenerateMemberCode(MemberInfo member, int indentLevel)
+    {
+        var indent = new string(' ', indentLevel * 4);
+        var accessStr = GetAccessibilityString(member.Accessibility);
+        var staticStr = member.IsStatic ? "static " : "";
+
+        return member.Kind switch
+        {
+            MemberKind.Field => $"{indent}{accessStr} {staticStr}{member.ReturnType} {member.Name};",
+            MemberKind.Property => GeneratePropertyCode(member, indent, accessStr, staticStr),
+            MemberKind.Method => GenerateMethodCode(member, indent, accessStr, staticStr),
+            MemberKind.Constructor => GenerateConstructorCode(member, indent, accessStr),
+            _ => $"// Unknown member type: {member.Kind}"
+        };
+    }
+
+    /// <summary>
+    /// プロパティコードを生成
+    /// </summary>
+    private string GeneratePropertyCode(MemberInfo member, string indent, string accessStr, string staticStr)
+    {
+        return $"{indent}{accessStr} {staticStr}{member.ReturnType} {member.Name} {{ get; set; }}";
+    }
+
+    /// <summary>
+    /// メソッドコードを生成
+    /// </summary>
+    private string GenerateMethodCode(MemberInfo member, string indent, string accessStr, string staticStr)
+    {
+        var parameters = string.Join(", ", member.Parameters.Select(p => $"{p.TypeName} {p.Name}"));
+        var sb = new StringBuilder();
+
+        sb.AppendLine($"{indent}{accessStr} {staticStr}{member.ReturnType} {member.Name}({parameters})");
+        sb.AppendLine($"{indent}{{");
+
+        if (member.AssociatedBlock != null)
+        {
+            var blockCode = member.AssociatedBlock.CodeOutput(2);
+            sb.AppendLine(blockCode);
+        }
+        else
+        {
+            sb.AppendLine($"{indent}    // TODO: メソッド本体を実装");
+        }
+
+        sb.AppendLine($"{indent}}}");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// コンストラクタコードを生成
+    /// </summary>
+    private string GenerateConstructorCode(MemberInfo member, string indent, string accessStr)
+    {
+        var parameters = string.Join(", ", member.Parameters.Select(p => $"{p.TypeName} {p.Name}"));
+        var sb = new StringBuilder();
+
+        sb.AppendLine($"{indent}{accessStr} {member.Name}({parameters})");
+        sb.AppendLine($"{indent}{{");
+        sb.AppendLine($"{indent}    // TODO: コンストラクタ本体を実装");
+        sb.AppendLine($"{indent}}}");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// アクセシビリティを文字列に変換
+    /// </summary>
+    private static string GetAccessibilityString(Accessibility accessibility)
+    {
+        return accessibility switch
+        {
+            Accessibility.Public => "public",
+            Accessibility.Private => "private",
+            Accessibility.Protected => "protected",
+            Accessibility.Internal => "internal",
+            Accessibility.ProtectedInternal => "protected internal",
+            Accessibility.PrivateProtected => "private protected",
+            _ => "public"
+        };
+    }
+
+    /// <summary>
+    /// RoslynのSyntaxTreeを使用してより高度なコード生成
+    /// </summary>
+    public CompilationUnitSyntax GenerateSyntaxTree(CodeObject obj)
+    {
+        // クラス宣言
+        var classDeclaration = SyntaxFactory.ClassDeclaration(obj.Name)
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword)
+            ))
+            .AddMembers(GenerateMembers(obj));
+
+        // 名前空間
+        var namespaceDeclaration = SyntaxFactory.NamespaceDeclaration(
+            SyntaxFactory.ParseName(obj.Namespace))
+            .AddMembers(classDeclaration);
+
+        // usingディレクティブ
+        var usingDirectives = new[]
         {
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System")),
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Collections.Generic")),
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Linq"))
         };
 
-        var namespaceDeclaration = SyntaxFactory.NamespaceDeclaration(
-            SyntaxFactory.ParseName(obj.Namespace))
-            .AddMembers(GenerateClass(obj));
-
+        // コンパイルユニット
         var compilationUnit = SyntaxFactory.CompilationUnit()
-            .AddUsings(usings)
+            .AddUsings(usingDirectives)
             .AddMembers(namespaceDeclaration);
 
-        return compilationUnit.NormalizeWhitespace().ToFullString();
+        return compilationUnit;
     }
 
     /// <summary>
-    /// クラス宣言を生成
+    /// メンバーのSyntax配列を生成
     /// </summary>
-    private ClassDeclarationSyntax GenerateClass(CodeObject obj)
+    private MemberDeclarationSyntax[] GenerateMembers(CodeObject obj)
     {
-        var classDeclaration = SyntaxFactory.ClassDeclaration(obj.Name)
-            .AddModifiers(GetAccessibilityToken(obj.Accessibility));
+        var members = new List<MemberDeclarationSyntax>();
 
-        if (obj.IsStatic)
-        {
-            classDeclaration = classDeclaration.AddModifiers(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
-        }
-
-        if (obj.IsAbstract)
-        {
-            classDeclaration = classDeclaration.AddModifiers(SyntaxFactory.Token(SyntaxKind.AbstractKeyword));
-        }
-
-        if (obj.IsSealed)
-        {
-            classDeclaration = classDeclaration.AddModifiers(SyntaxFactory.Token(SyntaxKind.SealedKeyword));
-        }
-
-        // 基底クラス
-        if (!string.IsNullOrEmpty(obj.BaseClassName))
-        {
-            classDeclaration = classDeclaration.WithBaseList(
-                SyntaxFactory.BaseList(
-                    SyntaxFactory.SeparatedList(new[]
-                    {
-                        SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName(obj.BaseClassName!))
-                    })));
-        }
-
-        // インターフェース実装
-        if (obj.ImplementedInterfaces.Count > 0)
-        {
-            var baseTypes = obj.ImplementedInterfaces
-                .Select(i => SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName(i)))
-                .Cast<BaseTypeSyntax>()
-                .ToList();
-
-            if (classDeclaration.BaseList != null)
-            {
-                baseTypes.InsertRange(0, classDeclaration.BaseList.Types.Select(t => (BaseTypeSyntax)t));
-            }
-
-            classDeclaration = classDeclaration.WithBaseList(
-                SyntaxFactory.BaseList(SyntaxFactory.SeparatedList(baseTypes)));
-        }
-
-        // メンバーを追加
+        // メンバー情報から生成
         foreach (var member in obj.Members)
         {
-            var memberDeclaration = GenerateMember(member);
-            if (memberDeclaration != null)
+            switch (member.Kind)
             {
-                classDeclaration = classDeclaration.AddMembers(memberDeclaration);
+                case MemberKind.Field:
+                    members.Add(GenerateFieldSyntax(member));
+                    break;
+                case MemberKind.Property:
+                    members.Add(GeneratePropertySyntax(member));
+                    break;
+                case MemberKind.Method:
+                    members.Add(GenerateMethodSyntax(member));
+                    break;
             }
         }
 
-        // ブロックからメンバーを生成
-        foreach (var block in obj.Blocks)
+        // ブロックからメソッド生成
+        var methods = GenerateMethodsFromBlocks(obj);
+        members.AddRange(methods);
+
+        return members.ToArray();
+    }
+
+    /// <summary>
+    /// フィールドのSyntaxを生成
+    /// </summary>
+    private FieldDeclarationSyntax GenerateFieldSyntax(MemberInfo member)
+    {
+        var variableDeclaration = SyntaxFactory.VariableDeclaration(
+            SyntaxFactory.ParseTypeName(member.ReturnType))
+            .AddVariables(SyntaxFactory.VariableDeclarator(member.Name));
+
+        var modifiers = new List<SyntaxToken>
         {
-            var memberFromBlock = GenerateMemberFromBlock(block);
-            if (memberFromBlock != null)
+            SyntaxFactory.Token(SyntaxKind.PublicKeyword)
+        };
+
+        if (member.IsStatic)
+        {
+            modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
+        }
+
+        return SyntaxFactory.FieldDeclaration(variableDeclaration)
+            .WithModifiers(SyntaxFactory.TokenList(modifiers));
+    }
+
+    /// <summary>
+    /// プロパティのSyntaxを生成
+    /// </summary>
+    private PropertyDeclarationSyntax GeneratePropertySyntax(MemberInfo member)
+    {
+        var accessors = SyntaxFactory.AccessorList(
+            SyntaxFactory.List(new[]
             {
-                classDeclaration = classDeclaration.AddMembers(memberFromBlock);
-            }
-        }
-
-        return classDeclaration;
-    }
-
-    /// <summary>
-    /// アクセシビリティからSyntaxTokenを取得
-    /// </summary>
-    private SyntaxToken GetAccessibilityToken(Accessibility accessibility)
-    {
-        return accessibility switch
-        {
-            Accessibility.Public => SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-            Accessibility.Private => SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
-            Accessibility.Protected => SyntaxFactory.Token(SyntaxFactory.ProtectedKeyword),
-            Accessibility.Internal => SyntaxFactory.Token(SyntaxKind.InternalKeyword),
-            Accessibility.ProtectedInternal => SyntaxFactory.Token(SyntaxKind.ProtectedKeyword),
-            Accessibility.PrivateProtected => SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
-            _ => SyntaxFactory.Token(SyntaxKind.PublicKeyword)
-        };
-    }
-
-    /// <summary>
-    /// メンバー宣言を生成
-    /// </summary>
-    private MemberDeclarationSyntax? GenerateMember(MemberInfo member)
-    {
-        return member.Kind switch
-        {
-            MemberKind.InstanceMethod or MemberKind.StaticMethod => GenerateMethod(member),
-            MemberKind.Field or MemberKind.InstanceField or MemberKind.StaticField => GenerateField(member),
-            MemberKind.Property => GenerateProperty(member),
-            _ => null
-        };
-    }
-
-    /// <summary>
-    /// メソッド宣言を生成
-    /// </summary>
-    private MethodDeclarationSyntax? GenerateMethod(MemberInfo member)
-    {
-        var method = SyntaxFactory.MethodDeclaration(
-            SyntaxFactory.ParseTypeName(member.ReturnType),
-            member.Name)
-            .AddModifiers(GetAccessibilityToken(member.Accessibility));
-
-        if (member.IsStatic)
-        {
-            method = method.AddModifiers(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
-        }
-
-        // パラメータ
-        foreach (var param in member.Parameters)
-        {
-            method = method.AddParameterListParameters(
-                SyntaxFactory.Parameter(SyntaxFactory.Identifier(param.Name))
-                    .WithType(SyntaxFactory.ParseTypeName(param.TypeName)));
-        }
-
-        // 関連ブロックから本体を生成
-        if (member.AssociatedBlock != null)
-        {
-            var bodyCode = member.AssociatedBlock.CodeOutput(1);
-            var statements = SyntaxFactory.ParseStatement(bodyCode);
-            method = method.WithBody(SyntaxFactory.Block(statements));
-        }
-        else
-        {
-            method = method.WithBody(SyntaxFactory.Block());
-        }
-
-        return method;
-    }
-
-    /// <summary>
-    /// フィールド宣言を生成
-    /// </summary>
-    private FieldDeclarationSyntax? GenerateField(MemberInfo member)
-    {
-        var field = SyntaxFactory.FieldDeclaration(
-            SyntaxFactory.VariableDeclaration(
-                SyntaxFactory.ParseTypeName(member.ReturnType))
-            .AddVariables(SyntaxFactory.VariableDeclarator(member.Name)))
-            .AddModifiers(GetAccessibilityToken(member.Accessibility));
-
-        if (member.IsStatic)
-        {
-            field = field.AddModifiers(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
-        }
-
-        return field;
-    }
-
-    /// <summary>
-    /// プロパティ宣言を生成
-    /// </summary>
-    private PropertyDeclarationSyntax? GenerateProperty(MemberInfo member)
-    {
-        var property = SyntaxFactory.PropertyDeclaration(
-            SyntaxFactory.ParseTypeName(member.ReturnType),
-            member.Name)
-            .AddModifiers(GetAccessibilityToken(member.Accessibility))
-            .AddAccessorListAccessors(
                 SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
                 SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
-                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+            }));
 
-        return property;
+        var modifiers = new List<SyntaxToken>
+        {
+            SyntaxFactory.Token(SyntaxKind.PublicKeyword)
+        };
+
+        if (member.IsStatic)
+        {
+            modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
+        }
+
+        return SyntaxFactory.PropertyDeclaration(
+            SyntaxFactory.ParseTypeName(member.ReturnType),
+            member.Name)
+            .WithModifiers(SyntaxFactory.TokenList(modifiers))
+            .WithAccessors(accessors);
     }
 
     /// <summary>
-    /// ブロックからメンバーを生成
+    /// メソッドのSyntaxを生成
     /// </summary>
-    private MemberDeclarationSyntax? GenerateMemberFromBlock(BlockBase block)
+    private MethodDeclarationSyntax GenerateMethodSyntax(MemberInfo member)
     {
-        if (block is Statements.ClassDefineBlock classBlock)
+        var parameters = member.Parameters.Select(p =>
+            SyntaxFactory.Parameter(SyntaxFactory.ParseToken(p.Name))
+                .WithType(SyntaxFactory.ParseTypeName(p.TypeName))).ToArray();
+
+        var modifiers = new List<SyntaxToken>
         {
-            // クラス定義ブロックは別のクラスとして生成
-            var classObj = new CodeObject
-            {
-                Name = classBlock.Parameters[0].GetValueAsString(),
-                BaseClassName = classBlock.Parameters[1].GetValueAsString()
-            };
+            SyntaxFactory.Token(SyntaxKind.PublicKeyword)
+        };
 
-            foreach (var innerBlock in classBlock.InnerBlocks)
-            {
-                var innerMember = GenerateMemberFromBlock(innerBlock);
-                if (innerMember != null)
-                {
-                    // 内部ブロックのメンバーを追加する処理が必要
-                }
-            }
-
-            return null; // クラスはトップレベルで生成
+        if (member.IsStatic)
+        {
+            modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
         }
 
-        if (block is Statements.MethodDefineBlock methodBlock)
-        {
-            var returnType = methodBlock.Parameters[0].GetValueAsString();
-            var methodName = methodBlock.Parameters[1].GetValueAsString();
-            var parameters = methodBlock.Parameters[2].GetValueAsString();
-            var isStatic = methodBlock.Parameters[3].Value as bool? ?? false;
+        var body = member.AssociatedBlock != null
+            ? SyntaxFactory.ParseStatement(member.AssociatedBlock.CodeOutput(1))
+            : SyntaxFactory.Block();
 
-            var method = SyntaxFactory.MethodDeclaration(
-                SyntaxFactory.ParseTypeName(returnType),
-                methodName)
-                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
-
-            if (isStatic)
-            {
-                method = method.AddModifiers(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
-            }
-
-            // パラメータを解析
-            if (!string.IsNullOrEmpty(parameters))
-            {
-                var paramList = SyntaxFactory.ParseParameterList($"({parameters})");
-                method = method.WithParameterList(paramList);
-            }
-
-            // 本体を生成
-            var bodyStatements = new List<StatementSyntax>();
-            foreach (var innerBlock in methodBlock.InnerBlocks)
-            {
-                var code = innerBlock.CodeOutput(0);
-                var stmt = SyntaxFactory.ParseStatement(code);
-                if (stmt != null)
-                {
-                    bodyStatements.Add(stmt);
-                }
-            }
-
-            method = method.WithBody(SyntaxFactory.Block(bodyStatements));
-
-            return method;
-        }
-
-        if (block is Statements.FieldDefineBlock fieldBlock)
-        {
-            var type = fieldBlock.Parameters[0].GetValueAsString();
-            var name = fieldBlock.Parameters[1].GetValueAsString();
-            var isStatic = fieldBlock.Parameters[3].Value as bool? ?? false;
-
-            var field = SyntaxFactory.FieldDeclaration(
-                SyntaxFactory.VariableDeclaration(
-                    SyntaxFactory.ParseTypeName(type))
-                .AddVariables(SyntaxFactory.VariableDeclarator(name)))
-                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
-
-            if (isStatic)
-            {
-                field = field.AddModifiers(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
-            }
-
-            return field;
-        }
-
-        if (block is Statements.PropertyDefineBlock propBlock)
-        {
-            var type = propBlock.Parameters[0].GetValueAsString();
-            var name = propBlock.Parameters[1].GetValueAsString();
-
-            var property = SyntaxFactory.PropertyDeclaration(
-                SyntaxFactory.ParseTypeName(type),
-                name)
-                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
-                .AddAccessorListAccessors(
-                    SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                        .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
-                    SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
-                        .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
-
-            return property;
-        }
-
-        return null;
+        return SyntaxFactory.MethodDeclaration(
+            SyntaxFactory.ParseTypeName(member.ReturnType),
+            member.Name)
+            .WithModifiers(SyntaxFactory.TokenList(modifiers))
+            .AddParameterListParameters(parameters)
+            .WithBody(SyntaxFactory.Block(body as StatementSyntax));
     }
 
     /// <summary>
-    /// Mainメソッドを含むエントリーポイントクラスを生成
+    /// ブロックからメソッドを生成
     /// </summary>
-    public string GenerateExecutableCode(Project project, string mainClassName = "Program")
+    private IEnumerable<MethodDeclarationSyntax> GenerateMethodsFromBlocks(CodeObject obj)
     {
-        var code = GenerateCode(project);
+        // 各ブロックチェーンの先頭を取得
+        var rootBlocks = obj.Blocks.Where(b => b.PreviousBlock == null);
 
-        // ProgramクラスとMainメソッドが存在するか確認
-        if (!project.Objects.Any(o => o.Name == mainClassName))
+        foreach (var block in rootBlocks)
         {
-            var programObj = new CodeObject
+            // メソッド定義ブロックからメソッドを生成
+            if (block is Statements.MethodDefineBlock methodBlock)
             {
-                Name = mainClassName,
-                Namespace = project.DefaultNamespace
-            };
+                yield return GenerateMethodFromBlock(methodBlock);
+            }
+        }
+    }
 
-            var mainMethod = new MemberInfo
-            {
-                Name = "Main",
-                Kind = MemberKind.StaticMethod,
-                ReturnType = "void",
-                IsStatic = true
-            };
+    /// <summary>
+    /// メソッド定義ブロックからメソッドSyntaxを生成
+    /// </summary>
+    private MethodDeclarationSyntax GenerateMethodFromBlock(Statements.MethodDefineBlock block)
+    {
+        var returnType = block.Parameters[0].GetValueAsString();
+        var methodName = block.Parameters[1].GetValueAsString();
+        var parameters = block.Parameters[2].GetValueAsString();
+        var isStatic = block.Parameters[3].GetValueAsString() == "true";
 
-            programObj.Members.Add(mainMethod);
-            project.Objects.Add(programObj);
+        var modifiers = new List<SyntaxToken>
+        {
+            SyntaxFactory.Token(SyntaxKind.PublicKeyword)
+        };
+
+        if (isStatic)
+        {
+            modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
         }
 
-        return code;
+        var bodyStatements = block.InnerBlocks
+            .Select(b => SyntaxFactory.ParseStatement(b.CodeOutput(1)))
+            .Where(s => s != null)
+            .Cast<StatementSyntax>()
+            .ToArray();
+
+        return SyntaxFactory.MethodDeclaration(
+            SyntaxFactory.ParseTypeName(returnType),
+            methodName)
+            .WithModifiers(SyntaxFactory.TokenList(modifiers))
+            .WithBody(SyntaxFactory.Block(bodyStatements));
     }
 }
