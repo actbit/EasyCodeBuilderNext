@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:EasyCodeBuilderNext.Controls"
+             xmlns:models="clr-namespace:EasyCodeBuilderNext.Core.Models;assembly=EasyCodeBuilderNext.Core"
+             x:Class="EasyCodeBuilderNext.Controls.BlockPalette">
+
+  <UserControl.Styles>
+    <Style Selector="Button.category-btn">
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="Margin" Value="2"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="Button.category-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#20000000"/>
+    </Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="4"/>
+      <Setter Property="Margin" Value="2"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,*">
+    <!-- カテゴリボタン -->
+    <WrapPanel Grid.Row="0" Margin="4" Orientation="Horizontal">
+      <Button Classes="category-btn" Content="変数" CommandParameter="{x:Static models:BlockCategory.Variables}"
+              Click="OnCategoryClick" Background="#FF8C1A" Foreground="White"/>
+      <Button Classes="category-btn" Content="制御" CommandParameter="{x:Static models:BlockCategory.Control}"
+              Click="OnCategoryClick" Background="#FFBF00" Foreground="Black"/>
+      <Button Classes="category-btn" Content="メソッド" CommandParameter="{x:Static models:BlockCategory.Methods}"
+              Click="OnCategoryClick" Background="#9966FF" Foreground="White"/>
+      <Button Classes="category-btn" Content="クラス" CommandParameter="{x:Static models:BlockCategory.Classes}"
+              Click="OnCategoryClick" Background="#FF66B2" Foreground="White"/>
+      <Button Classes="category-btn" Content="入出力" CommandParameter="{x:Static models:BlockCategory.IO}"
+              Click="OnCategoryClick" Background="#4C97FF" Foreground="White"/>
+      <Button Classes="category-btn" Content="演算子" CommandParameter="{x:Static models:BlockCategory.Operators}"
+              Click="OnCategoryClick" Background="#59C059" Foreground="White"/>
+      <Button Classes="category-btn" Content="データ" CommandParameter="{x:Static models:BlockCategory.Data}"
+              Click="OnCategoryClick" Background="#FF6666" Foreground="White"/>
+    </WrapPanel>
+
+    <!-- ブロックリスト -->
+    <ScrollViewer Grid.Row="1">
+      <ItemsControl ItemsSource="{Binding BlockTemplates}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Background="{Binding Category, Converter={StaticResource CategoryToColorConverter}}"
+                    CornerRadius="8" Padding="8,4" Margin="4"
+                    PointerPressed="OnBlockPointerPressed"
+                    Cursor="Hand">
+              <TextBlock Text="{Binding DisplayName}"
+                         Foreground="White"
+                         FontSize="12"
+                         TextWrapping="Wrap"/>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

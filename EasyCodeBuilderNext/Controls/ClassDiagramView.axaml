@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:EasyCodeBuilderNext.Controls"
+             x:Class="EasyCodeBuilderNext.Controls.ClassDiagramView">
+
+  <UserControl.Styles>
+    <Style Selector="Border.class-box">
+      <Setter Property="Effect">
+        <Setter.Value>
+          <DropShadow EffectType="DropShadow" BlurRadius="4" OffsetX="2" OffsetY="2" Opacity="0.3"/>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,*">
+    <!-- ツールバー -->
+    <Border Grid.Row="0" Background="#F0F0F0" Padding="8,4" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="クラスダイアグラム" FontWeight="Bold" VerticalAlignment="Center"/>
+        <Button Content="更新" Command="{Binding RefreshDiagramCommand}" Padding="8,4"/>
+        <Button Content="閉じる" Command="{Binding ToggleClassDiagramCommand}" Padding="8,4"/>
+      </StackPanel>
+    </Border>
+
+    <!-- ダイアグラムキャンバス -->
+    <ScrollViewer Grid.Row="1" Background="#FAFAFA">
+      <Canvas x:Name="DiagramCanvas" Width="2000" Height="2000"/>
+    </ScrollViewer>
+  </Grid>
+</UserControl>
