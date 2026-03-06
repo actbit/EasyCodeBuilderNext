@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Media;
@@ -29,16 +30,23 @@ public class PuzzleBlock : ContentControl
     private double _offsetX;
     private double _offsetY;
     private PuzzleBlock? _snapCandidate;
-    private bool _snapToBottom; // true: 相手の下に接続, false: 相手の内側に接続
+    private SnapType _snapType;
 
-    private const double SnapThreshold = 40;
+    private const double SnapThreshold = 50;
     private const double BlockWidth = 180;
     private const double BlockHeight = 40;
     private const double ConnectorSize = 12;
     private const double InnerIndent = 20;
 
-    // ブロックの実際のサイズ（制御構造は動的に変わる）
     public double ActualBlockHeight { get; private set; } = BlockHeight;
+
+    private enum SnapType
+    {
+        None,
+        BelowOther,      // 他のブロックの下に接続
+        AboveOther,      // 他のブロックの上に接続
+        InsideControl    // 制御構造の内側に接続
+    }
 
     public PuzzleBlock()
     {
@@ -93,7 +101,6 @@ public class PuzzleBlock : ContentControl
         }
         else if (e.PropertyName == nameof(BlockBase.IsHighlighted))
         {
-            // 再描画をトリガー
             InvalidateVisual();
         }
     }
@@ -114,34 +121,26 @@ public class PuzzleBlock : ContentControl
 
         var color = Color.Parse(Block.Category.GetColor());
         var darkerColor = DarkenColor(color, 0.15f);
-        var lighterColor = Color.FromRgb(
-            (byte)Math.Min(255, color.R + 30),
-            (byte)Math.Min(255, color.G + 30),
-            (byte)Math.Min(255, color.B + 30)
-        );
 
         var mainPanel = new Grid();
 
         if (Block.BlockType == BlockType.ControlStructure)
         {
-            // 制御構造（if, while, for）- C字型
-            BuildControlStructureBlock(mainPanel, color, darkerColor, lighterColor);
+            BuildControlStructureBlock(mainPanel, color, darkerColor);
         }
         else
         {
-            // 通常のステートメントブロック
-            BuildStatementBlock(mainPanel, color, darkerColor, lighterColor);
+            BuildStatementBlock(mainPanel, color, darkerColor);
         }
 
         Content = mainPanel;
     }
 
-    private void BuildStatementBlock(Grid mainPanel, Color color, Color darkerColor, Color lighterColor)
+    private void BuildStatementBlock(Grid mainPanel, Color color, Color darkerColor)
     {
-        var path = CreateStatementPath(color, darkerColor, lighterColor);
+        var path = CreateStatementPath(color, darkerColor);
         mainPanel.Children.Add(path);
 
-        // テキスト
         var textBlock = new TextBlock
         {
             Text = Block!.DisplayName,
@@ -159,26 +158,19 @@ public class PuzzleBlock : ContentControl
         ActualBlockHeight = BlockHeight;
     }
 
-    private void BuildControlStructureBlock(Grid mainPanel, Color color, Color darkerColor, Color lighterColor)
+    private void BuildControlStructureBlock(Grid mainPanel, Color color, Color darkerColor)
     {
-        // 内部ブロックの数に応じて高さを計算
-        double innerHeight = 60; // 最小の内部高さ
-        if (Block!.InnerBlocks.Count > 0)
-        {
-            innerHeight = 40; // 各内部ブロックの高さ分
-        }
-
-        double totalHeight = BlockHeight + innerHeight + BlockHeight; // ヘッダー + 内部 + フッター
+        double innerHeight = 60;
+        double totalHeight = BlockHeight + innerHeight + BlockHeight;
         Height = totalHeight;
         ActualBlockHeight = totalHeight;
 
-        var path = CreateControlStructurePath(color, darkerColor, lighterColor, innerHeight);
+        var path = CreateControlStructurePath(color, darkerColor, innerHeight);
         mainPanel.Children.Add(path);
 
-        // ヘッダーテキスト
         var headerText = new TextBlock
         {
-            Text = Block.DisplayName,
+            Text = Block!.DisplayName,
             Foreground = Brushes.White,
             FontSize = 13,
             FontWeight = FontWeight.Medium,
@@ -188,10 +180,9 @@ public class PuzzleBlock : ContentControl
         };
         mainPanel.Children.Add(headerText);
 
-        // 内部エリアのラベル
         var innerLabel = new TextBlock
         {
-            Text = "ここにブロックを追加",
+            Text = "ブロックを追加",
             Foreground = new SolidColorBrush(Color.FromArgb(100, 255, 255, 255)),
             FontSize = 11,
             FontStyle = FontStyle.Italic,
@@ -202,34 +193,45 @@ public class PuzzleBlock : ContentControl
         mainPanel.Children.Add(innerLabel);
     }
 
-    private Path CreateStatementPath(Color color, Color darkerColor, Color lighterColor)
+    private Path CreateStatementPath(Color color, Color darkerColor)
     {
         var geometry = new StreamGeometry();
         using (var context = geometry.Open())
         {
             double w = BlockWidth;
             double h = BlockHeight;
-            double c = ConnectorSize;
+            double c = ConnectorSize; // コネクタの高さ
+            double cw = 25; // コネクタの幅
             double r = 6; // 角丸
 
-            // パズルピースの形状（上に凹み、下に凸）
-            context.BeginFigure(new Point(0, c), true);
-            context.LineTo(new Point(15, c));
-            context.LineTo(new Point(20, 0)); // 上部の凹み
-            context.LineTo(new Point(35, 0));
-            context.LineTo(new Point(40, c));
-            context.LineTo(new Point(w - r, c));
-            context.ArcTo(new Point(w, c + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
-            context.LineTo(new Point(w, h - c - r));
-            context.ArcTo(new Point(w - r, h - c), new Size(r, r), 0, false, SweepDirection.Clockwise);
-            context.LineTo(new Point(40, h - c));
-            context.LineTo(new Point(35, h)); // 下部の凸
-            context.LineTo(new Point(20, h));
-            context.LineTo(new Point(15, h - c));
-            context.LineTo(new Point(r, h - c));
-            context.ArcTo(new Point(0, h - c - r), new Size(r, r), 0, false, SweepDirection.Clockwise);
-            context.LineTo(new Point(0, c + r));
-            context.ArcTo(new Point(r, c), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            // Scratch風パズルピース形状
+            // 左上から開始
+            context.BeginFigure(new Point(0, r), true);
+            context.ArcTo(new Point(r, 0), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 上辺（凹み部分）
+            context.LineTo(new Point(15, 0));
+            context.LineTo(new Point(18, c * 0.7));
+            context.LineTo(new Point(15 + cw, c * 0.7));
+            context.LineTo(new Point(18 + cw, 0));
+            context.LineTo(new Point(w - r, 0));
+            context.ArcTo(new Point(w, r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 右辺
+            context.LineTo(new Point(w, h - r));
+            context.ArcTo(new Point(w - r, h), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 下辺（凸部分）
+            context.LineTo(new Point(18 + cw, h));
+            context.LineTo(new Point(15 + cw, h - c * 0.7));
+            context.LineTo(new Point(18, h - c * 0.7));
+            context.LineTo(new Point(15, h));
+            context.LineTo(new Point(r, h));
+            context.ArcTo(new Point(0, h - r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 左辺
+            context.LineTo(new Point(0, r));
+
             context.EndFigure(true);
         }
 
@@ -242,7 +244,7 @@ public class PuzzleBlock : ContentControl
         };
     }
 
-    private Path CreateControlStructurePath(Color color, Color darkerColor, Color lighterColor, double innerHeight)
+    private Path CreateControlStructurePath(Color color, Color darkerColor, double innerHeight)
     {
         var geometry = new StreamGeometry();
         using (var context = geometry.Open())
@@ -250,45 +252,54 @@ public class PuzzleBlock : ContentControl
             double w = BlockWidth;
             double headerH = BlockHeight;
             double innerH = innerHeight;
-            double footerH = BlockHeight;
-            double totalH = headerH + innerH + footerH;
+            double totalH = headerH + innerH + headerH;
             double c = ConnectorSize;
+            double cw = 25;
             double indent = InnerIndent;
             double r = 6;
 
-            // C字型のパズルブロック
-            context.BeginFigure(new Point(0, c), true);
+            // 左上から開始
+            context.BeginFigure(new Point(0, r), true);
+            context.ArcTo(new Point(r, 0), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
-            // 上部ヘッダー
-            context.LineTo(new Point(15, c));
-            context.LineTo(new Point(20, 0)); // 上部の凹み
-            context.LineTo(new Point(35, 0));
-            context.LineTo(new Point(40, c));
-            context.LineTo(new Point(w - r, c));
-            context.ArcTo(new Point(w, c + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            // 上辺（凹み）
+            context.LineTo(new Point(15, 0));
+            context.LineTo(new Point(18, c * 0.7));
+            context.LineTo(new Point(15 + cw, c * 0.7));
+            context.LineTo(new Point(18 + cw, 0));
+            context.LineTo(new Point(w - r, 0));
+            context.ArcTo(new Point(w, r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 右辺（ヘッダー部分）
             context.LineTo(new Point(w, headerH - r));
             context.ArcTo(new Point(w - r, headerH), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
-            // 右側から内側へ（内部ブロックエリアの開始）
+            // ヘッダーから内側へ（インデント）
             context.LineTo(new Point(indent + r, headerH));
             context.ArcTo(new Point(indent, headerH + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 内部左辺
             context.LineTo(new Point(indent, headerH + innerH - r));
             context.ArcTo(new Point(indent + r, headerH + innerH), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
-            // フッター（内部ブロックエリアの終わり）
+            // 内部から右側へ
             context.LineTo(new Point(w - r, headerH + innerH));
             context.ArcTo(new Point(w, headerH + innerH + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
-            context.LineTo(new Point(w, totalH - c - r));
-            context.ArcTo(new Point(w - r, totalH - c), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
-            context.LineTo(new Point(40, totalH - c));
-            context.LineTo(new Point(35, totalH)); // 下部の凸
-            context.LineTo(new Point(20, totalH));
-            context.LineTo(new Point(15, totalH - c));
-            context.LineTo(new Point(r, totalH - c));
-            context.ArcTo(new Point(0, totalH - c - r), new Size(r, r), 0, false, SweepDirection.Clockwise);
-            context.LineTo(new Point(0, c + r));
-            context.ArcTo(new Point(r, c), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            // 右辺（フッター部分）
+            context.LineTo(new Point(w, totalH - r));
+            context.ArcTo(new Point(w - r, totalH), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 下辺（凸）
+            context.LineTo(new Point(18 + cw, totalH));
+            context.LineTo(new Point(15 + cw, totalH - c * 0.7));
+            context.LineTo(new Point(18, totalH - c * 0.7));
+            context.LineTo(new Point(15, totalH));
+            context.LineTo(new Point(r, totalH));
+            context.ArcTo(new Point(0, totalH - r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 左辺
+            context.LineTo(new Point(0, r));
 
             context.EndFigure(true);
         }
@@ -306,35 +317,37 @@ public class PuzzleBlock : ContentControl
     {
         if (Block == null) return;
 
-        Visual? visual = this;
-        Visual? canvasChild = null;
-
-        while (visual != null)
+        var container = GetCanvasContainer();
+        if (container != null)
         {
-            var parent = visual.GetVisualParent();
+            Canvas.SetLeft(container, Block.X);
+            Canvas.SetTop(container, Block.Y);
+        }
+    }
+
+    private Control? GetCanvasContainer()
+    {
+        // ItemsControl内では、ContentPresenterがコンテナ
+        Visual? current = this;
+        while (current != null)
+        {
+            var parent = current.GetVisualParent();
             if (parent is Canvas)
             {
-                canvasChild = visual;
-                break;
+                return current as Control;
             }
-            visual = parent;
+            current = parent;
         }
-
-        if (canvasChild != null)
-        {
-            Canvas.SetLeft(canvasChild, Block.X);
-            Canvas.SetTop(canvasChild, Block.Y);
-        }
+        return null;
     }
 
     public override void Render(DrawingContext context)
     {
         base.Render(context);
 
-        // ハイライト表示
         if (Block?.IsHighlighted == true)
         {
-            var highlightBrush = new SolidColorBrush(Color.FromArgb(100, 255, 255, 0));
+            var highlightBrush = new SolidColorBrush(Color.FromArgb(80, 255, 255, 0));
             context.FillRectangle(highlightBrush, new Rect(0, 0, Bounds.Width, Bounds.Height), 8);
             context.DrawRectangle(new Pen(Brushes.Yellow, 3), new Rect(0, 0, Bounds.Width, Bounds.Height), 8);
         }
@@ -359,6 +372,8 @@ public class PuzzleBlock : ContentControl
         Opacity = 0.85;
         e.Pointer.Capture(this);
         e.Handled = true;
+
+        Debug.WriteLine($"[Drag Start] {Block.DisplayName} at ({Block.X}, {Block.Y})");
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -386,75 +401,106 @@ public class PuzzleBlock : ContentControl
         if (canvas == null) return;
 
         // 全てのハイライトを解除
-        foreach (var child in canvas.Children)
+        var allBlocks = GetAllPuzzleBlocks(canvas);
+        foreach (var block in allBlocks)
         {
-            if (child is PuzzleBlock otherBlock && otherBlock.Block != null && otherBlock != this)
+            if (block.Block != null && block != this)
             {
-                otherBlock.Block.IsHighlighted = false;
+                block.Block.IsHighlighted = false;
             }
         }
 
         _snapCandidate = null;
-        _snapToBottom = false;
+        _snapType = SnapType.None;
 
-        foreach (var child in canvas.Children)
+        double bestDistance = SnapThreshold;
+        PuzzleBlock? bestCandidate = null;
+        SnapType bestSnapType = SnapType.None;
+
+        foreach (var otherBlock in allBlocks)
         {
-            if (child is PuzzleBlock otherBlock && otherBlock.Block != null && otherBlock != this)
+            if (otherBlock == this || otherBlock.Block == null) continue;
+
+            var other = otherBlock.Block;
+
+            // 1. このブロックを他のブロックの下に接続
+            if (Block.HasTopConnector && other.HasBottomConnector)
             {
-                var other = otherBlock.Block;
+                var otherBottomY = other.Y + otherBlock.ActualBlockHeight;
+                var dx = Block.X - other.X;
+                var dy = Block.Y - otherBottomY;
+                var distance = Math.Sqrt(dx * dx + dy * dy);
 
-                // 1. このブロックを他のブロックの下に接続
-                if (Block.HasTopConnector && other.HasBottomConnector)
+                if (distance < bestDistance)
                 {
-                    var otherBottomY = other.Y + otherBlock.ActualBlockHeight;
-                    var dx = Math.Abs(Block.X - other.X);
-                    var dy = Math.Abs(Block.Y - otherBottomY);
-
-                    if (dx < SnapThreshold && dy < SnapThreshold)
-                    {
-                        otherBlock.Block.IsHighlighted = true;
-                        _snapCandidate = otherBlock;
-                        _snapToBottom = true;
-                        return;
-                    }
+                    bestDistance = distance;
+                    bestCandidate = otherBlock;
+                    bestSnapType = SnapType.BelowOther;
                 }
+            }
 
-                // 2. このブロックの下に他のブロックを接続
-                if (Block.HasBottomConnector && other.HasTopConnector)
+            // 2. このブロックの下に他のブロックを接続
+            if (Block.HasBottomConnector && other.HasTopConnector)
+            {
+                var myBottomY = Block.Y + ActualBlockHeight;
+                var dx = other.X - Block.X;
+                var dy = other.Y - myBottomY;
+                var distance = Math.Sqrt(dx * dx + dy * dy);
+
+                if (distance < bestDistance)
                 {
-                    var myBottomY = Block.Y + ActualBlockHeight;
-                    var dx = Math.Abs(Block.X - other.X);
-                    var dy = Math.Abs(myBottomY - other.Y);
-
-                    if (dx < SnapThreshold && dy < SnapThreshold)
-                    {
-                        otherBlock.Block.IsHighlighted = true;
-                        _snapCandidate = otherBlock;
-                        _snapToBottom = false;
-                        return;
-                    }
+                    bestDistance = distance;
+                    bestCandidate = otherBlock;
+                    bestSnapType = SnapType.AboveOther;
                 }
+            }
 
-                // 3. 制御構造の内部に接続
-                if (other.BlockType == BlockType.ControlStructure && Block.HasTopConnector)
+            // 3. 制御構造の内部に接続
+            if (other.BlockType == BlockType.ControlStructure && Block.HasTopConnector)
+            {
+                double innerStartY = other.Y + BlockHeight;
+                double innerX = other.X + InnerIndent;
+
+                var dx = Block.X - innerX;
+                var dy = Block.Y - innerStartY;
+                var distance = Math.Sqrt(dx * dx + dy * dy);
+
+                if (distance < bestDistance)
                 {
-                    double innerStartY = other.Y + BlockHeight;
-                    double innerEndY = other.Y + otherBlock.ActualBlockHeight - BlockHeight;
-                    double innerX = other.X + InnerIndent;
-
-                    var dx = Math.Abs(Block.X - innerX);
-                    var dy = Math.Abs(Block.Y - innerStartY);
-
-                    if (dx < SnapThreshold && dy < SnapThreshold && Block.Y < innerEndY)
-                    {
-                        otherBlock.Block.IsHighlighted = true;
-                        _snapCandidate = otherBlock;
-                        _snapToBottom = false;
-                        return;
-                    }
+                    bestDistance = distance;
+                    bestCandidate = otherBlock;
+                    bestSnapType = SnapType.InsideControl;
                 }
             }
         }
+
+        if (bestCandidate != null && bestCandidate.Block != null)
+        {
+            _snapCandidate = bestCandidate;
+            _snapType = bestSnapType;
+            bestCandidate.Block.IsHighlighted = true;
+            Debug.WriteLine($"[Snap Candidate] {bestCandidate.Block.DisplayName} ({bestSnapType})");
+        }
+    }
+
+    private List<PuzzleBlock> GetAllPuzzleBlocks(Canvas canvas)
+    {
+        var result = new List<PuzzleBlock>();
+
+        foreach (var child in canvas.Children)
+        {
+            // ContentPresenterの中にPuzzleBlockがある
+            if (child is ContentPresenter presenter)
+            {
+                var puzzleBlock = presenter.Child as PuzzleBlock;
+                if (puzzleBlock != null)
+                {
+                    result.Add(puzzleBlock);
+                }
+            }
+        }
+
+        return result;
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
@@ -475,16 +521,17 @@ public class PuzzleBlock : ContentControl
         var canvas = this.FindAncestorOfType<Canvas>();
         if (canvas != null)
         {
-            foreach (var child in canvas.Children)
+            foreach (var block in GetAllPuzzleBlocks(canvas))
             {
-                if (child is PuzzleBlock otherBlock && otherBlock.Block != null)
+                if (block.Block != null)
                 {
-                    otherBlock.Block.IsHighlighted = false;
+                    block.Block.IsHighlighted = false;
                 }
             }
         }
 
         _snapCandidate = null;
+        _snapType = SnapType.None;
         e.Handled = true;
     }
 
@@ -495,43 +542,55 @@ public class PuzzleBlock : ContentControl
         var myBlock = Block;
         var otherBlock = _snapCandidate.Block;
 
-        // このブロックを他のブロックの下に接続
-        if (_snapToBottom && myBlock.HasTopConnector && otherBlock.HasBottomConnector)
+        switch (_snapType)
         {
-            var otherBottomY = otherBlock.Y + _snapCandidate.ActualBlockHeight;
-            myBlock.X = otherBlock.X;
-            myBlock.Y = otherBottomY;
+            case SnapType.BelowOther:
+                // このブロックを他のブロックの下に接続
+                myBlock.X = otherBlock.X;
+                myBlock.Y = otherBlock.Y + _snapCandidate.ActualBlockHeight;
 
-            otherBlock.NextBlock = myBlock;
-            myBlock.PreviousBlock = otherBlock;
+                // 既存の接続を解除して再接続
+                if (otherBlock.NextBlock != null)
+                {
+                    var oldNext = otherBlock.NextBlock;
+                    otherBlock.NextBlock = null;
+                    oldNext.PreviousBlock = null;
+                }
 
-            Debug.WriteLine($"Connected below: {otherBlock.DisplayName} -> {myBlock.DisplayName}");
-        }
-        // このブロックの下に他のブロックを接続
-        else if (!_snapToBottom && myBlock.HasBottomConnector && otherBlock.HasTopConnector)
-        {
-            // 制御構造の内部に接続する場合
-            if (myBlock.BlockType == BlockType.ControlStructure)
-            {
-                otherBlock.X = myBlock.X + InnerIndent;
-                otherBlock.Y = myBlock.Y + BlockHeight;
+                otherBlock.NextBlock = myBlock;
+                myBlock.PreviousBlock = otherBlock;
 
-                myBlock.InnerBlocks.Add(otherBlock);
-                otherBlock.ParentBlock = myBlock;
+                Debug.WriteLine($"[Connected] {otherBlock.DisplayName} -> {myBlock.DisplayName}");
+                break;
 
-                Debug.WriteLine($"Connected inside: {myBlock.DisplayName} <- {otherBlock.DisplayName}");
-            }
-            else
-            {
-                var myBottomY = myBlock.Y + ActualBlockHeight;
+            case SnapType.AboveOther:
+                // このブロックの下に他のブロックを接続
                 otherBlock.X = myBlock.X;
-                otherBlock.Y = myBottomY;
+                otherBlock.Y = myBlock.Y + ActualBlockHeight;
+
+                // 既存の接続を解除して再接続
+                if (myBlock.NextBlock != null)
+                {
+                    var oldNext = myBlock.NextBlock;
+                    myBlock.NextBlock = null;
+                    oldNext.PreviousBlock = null;
+                }
 
                 myBlock.NextBlock = otherBlock;
                 otherBlock.PreviousBlock = myBlock;
 
-                Debug.WriteLine($"Connected: {myBlock.DisplayName} -> {otherBlock.DisplayName}");
-            }
+                Debug.WriteLine($"[Connected] {myBlock.DisplayName} -> {otherBlock.DisplayName}");
+                break;
+
+            case SnapType.InsideControl:
+                // 制御構造の内部に接続
+                otherBlock.InnerBlocks.Add(myBlock);
+                myBlock.ParentBlock = otherBlock;
+                myBlock.X = otherBlock.X + InnerIndent;
+                myBlock.Y = otherBlock.Y + BlockHeight;
+
+                Debug.WriteLine($"[Connected Inside] {otherBlock.DisplayName} <- {myBlock.DisplayName}");
+                break;
         }
     }
 }
