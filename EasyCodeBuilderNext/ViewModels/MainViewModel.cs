@@ -4,8 +4,11 @@ using EasyCodeBuilderNext.Core.Blocks;
 using EasyCodeBuilderNext.Core.CodeGeneration;
 using EasyCodeBuilderNext.Core.Models;
 using EasyCodeBuilderNext.Core.PluginSystem;
+using EasyCodeBuilderNext.Core.TypeSystem;
+using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 
 namespace EasyCodeBuilderNext.ViewModels;
 

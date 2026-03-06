@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:EasyCodeBuilderNext"
              xmlns:controls="clr-namespace:EasyCodeBuilderNext.Controls"
+             xmlns:converters="clr-namespace:EasyCodeBuilderNext.Converters"
              x:Class="EasyCodeBuilderNext.App"
              RequestedThemeVariant="Light">
 
@@ -10,10 +11,10 @@
     </Application.DataTemplates>
 
     <Application.Resources>
-        <controls:CategoryToColorConverter x:Key="CategoryToColorConverter"/>
-        <controls:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <controls:MemberKindToIconConverter x:Key="MemberKindToIconConverter"/>
-        <controls:MemberKindToOpacityConverter x:Key="MemberKindToOpacityConverter"/>
+        <converters:CategoryToColorConverter x:Key="CategoryToColorConverter"/>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:MemberKindToIconConverter x:Key="MemberKindToIconConverter"/>
+        <converters:MemberKindToOpacityConverter x:Key="MemberKindToOpacityConverter"/>
     </Application.Resources>
 
     <Application.Styles>
@@ -32,8 +33,8 @@
             <Setter Property="Opacity" Value="0.9"/>
         </Style>
 
-        <Style Selector="controls|PuzzleBlock:selected">
-            <Setter Property="BoxShadow" Value="0 0 0 2px #4C97FF"/>
+        <Style Selector="controls|PuzzleBlock:selected /template/ ContentPresenter">
+            <Setter Property="BoxShadow" Value="0 0 0 2 #4C97FF"/>
         </Style>
 
         <Style Selector="controls|PuzzleBlock:dragging">
@@ -41,8 +42,8 @@
             <Setter Property="ZIndex" Value="1000"/>
         </Style>
 
-        <Style Selector="controls|PuzzleBlock:snaptarget">
-            <Setter Property="BoxShadow" Value="0 0 0 3px #59C059"/>
+        <Style Selector="controls|PuzzleBlock:snaptarget /template/ ContentPresenter">
+            <Setter Property="BoxShadow" Value="0 0 0 3 #59C059"/>
         </Style>
 
         <!-- コードキャンバススタイル -->
@@ -71,9 +72,7 @@
 
         <!-- クラスダイアグラムスタイル -->
         <Style Selector="controls|ClassDiagramView Border.class-box">
-            <Setter Property="Effect">
-                <DropShadowEffect BlurRadius="4" OffsetX="2" OffsetY="2" Opacity="0.3"/>
-            </Setter>
+            <Setter Property="BoxShadow" Value="2 2 4 0 #33000000"/>
         </Style>
     </Application.Styles>
 </Application>
