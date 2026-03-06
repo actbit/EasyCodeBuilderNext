@@ -3,7 +3,7 @@ using EasyCodeBuilderNext.Core.Models;
 namespace EasyCodeBuilderNext.Core.Blocks.Statements;
 
 /// <summary>
-/// コンソール出力ブロック
+/// Console.Writeブロック
 /// </summary>
 public class ConsoleWriteBlock : BlockBase
 {
@@ -19,7 +19,8 @@ public class ConsoleWriteBlock : BlockBase
             Name = "Value",
             Label = "値",
             TypeName = "object",
-            InputType = ParameterInputType.Block
+            InputType = ParameterInputType.Block,
+            Value = ""
         });
     }
 
@@ -31,7 +32,7 @@ public class ConsoleWriteBlock : BlockBase
 }
 
 /// <summary>
-/// コンソール出力（改行付き）ブロック
+/// Console.WriteLineブロック
 /// </summary>
 public class ConsoleWriteLineBlock : BlockBase
 {
@@ -48,6 +49,7 @@ public class ConsoleWriteLineBlock : BlockBase
             Label = "値",
             TypeName = "object",
             InputType = ParameterInputType.Block,
+            Value = "",
             IsRequired = false
         });
     }
@@ -64,57 +66,39 @@ public class ConsoleWriteLineBlock : BlockBase
 }
 
 /// <summary>
-/// コンソール入力ブロック
+/// Console.ReadLineブロック（式ブロック）
 /// </summary>
-public class ConsoleReadLineBlock : BlockBase
+public class ConsoleReadLineBlock : ExpressionBlockBase
 {
-    public override BlockType BlockType => BlockType.Statement;
+    public override BlockType BlockType => BlockType.Expression;
     public override BlockCategory Category => BlockCategory.IO;
     public override string DisplayName => "入力を受け取る";
-    public override string CodeTemplate => "{0} = Console.ReadLine();";
+    public override string CodeTemplate => "Console.ReadLine()";
+    public override string ReturnType => "string?";
 
-    public ConsoleReadLineBlock()
-    {
-        Parameters.Add(new BlockParameter
-        {
-            Name = "Variable",
-            Label = "変数",
-            TypeName = "string",
-            InputType = ParameterInputType.Variable
-        });
-    }
+    public ConsoleReadLineBlock() { }
 
     public override string CodeOutput(int level)
     {
-        var variable = Parameters[0].GetValueAsString();
-        return $"{GetIndent(level)}{variable} = Console.ReadLine();{GenerateNextBlockCode(level)}";
+        return "Console.ReadLine()";
     }
 }
 
 /// <summary>
-/// コンソール入力（数値）ブロック
+/// 整数入力ブロック
 /// </summary>
-public class ConsoleReadIntBlock : BlockBase
+public class ConsoleReadIntBlock : ExpressionBlockBase
 {
-    public override BlockType BlockType => BlockType.Statement;
+    public override BlockType BlockType => BlockType.Expression;
     public override BlockCategory Category => BlockCategory.IO;
     public override string DisplayName => "数値を入力";
-    public override string CodeTemplate => "{0} = int.Parse(Console.ReadLine());";
+    public override string CodeTemplate => "int.Parse(Console.ReadLine())";
+    public override string ReturnType => "int";
 
-    public ConsoleReadIntBlock()
-    {
-        Parameters.Add(new BlockParameter
-        {
-            Name = "Variable",
-            Label = "変数",
-            TypeName = "int",
-            InputType = ParameterInputType.Variable
-        });
-    }
+    public ConsoleReadIntBlock() { }
 
     public override string CodeOutput(int level)
     {
-        var variable = Parameters[0].GetValueAsString();
-        return $"{GetIndent(level)}{variable} = int.Parse(Console.ReadLine());{GenerateNextBlockCode(level)}";
+        return "int.Parse(Console.ReadLine())";
     }
 }

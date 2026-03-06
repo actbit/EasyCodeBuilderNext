@@ -3,14 +3,14 @@ using EasyCodeBuilderNext.Core.Models;
 namespace EasyCodeBuilderNext.Core.Blocks.Statements;
 
 /// <summary>
-/// Ifブロック
+/// ifブロック
 /// </summary>
 public class IfBlock : BlockBase
 {
     public override BlockType BlockType => BlockType.ControlStructure;
     public override BlockCategory Category => BlockCategory.Control;
     public override string DisplayName => "もし～なら";
-    public override string CodeTemplate => "if ({0}) {{ }}";
+    public override string CodeTemplate => "if ({0})\n{{\n{1}\n}}";
 
     public IfBlock()
     {
@@ -19,10 +19,9 @@ public class IfBlock : BlockBase
             Name = "Condition",
             Label = "条件",
             TypeName = "bool",
-            InputType = ParameterInputType.Block
+            InputType = ParameterInputType.Block,
+            Value = "true"
         });
-
-        Height = 60;
     }
 
     public override string CodeOutput(int level)
@@ -30,52 +29,72 @@ public class IfBlock : BlockBase
         var condition = Parameters[0].GetValueAsString();
         var innerCode = GenerateInnerBlocksCode(level);
 
-        var code = $"{GetIndent(level)}if ({condition})\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}";
-
-        // else節がある場合
-        if (AdditionalInnerBlocks.Count > 0)
-        {
-            var elseBlocks = AdditionalInnerBlocks[0];
-            if (elseBlocks.Count > 0)
-            {
-                var elseCode = new System.Text.StringBuilder();
-                foreach (var block in elseBlocks)
-                {
-                    elseCode.AppendLine(block.CodeOutput(level + 1));
-                }
-                code += $"\n{GetIndent(level)}else\n{GetIndent(level)}{{\n{elseCode.ToString().TrimEnd()}\n{GetIndent(level)}}}";
-            }
-            else
-            {
-                code += $"\n{GetIndent(level)}else\n{GetIndent(level)}{{\n{GetIndent(level + 1)}// 空のブロック\n{GetIndent(level)}}}";
-            }
-        }
-
-        return code + GenerateNextBlockCode(level);
+        var code = $"{GetIndent(level)}if ({condition})\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
+        return code;
     }
 }
 
 /// <summary>
-/// If-Elseブロック
+/// if-elseブロック
 /// </summary>
-public class IfElseBlock : IfBlock
+public class IfElseBlock : BlockBase
 {
-    public IfElseBlock() : base()
+    public override BlockType BlockType => BlockType.ControlStructure;
+    public override BlockCategory Category => BlockCategory.Control;
+    public override string DisplayName => "もし～なら/そうでなければ";
+    public override string CodeTemplate => "if ({0})\n{{\n{1}\n}}\nelse\n{{\n{2}\n}}";
+
+    public IfElseBlock()
     {
+        Parameters.Add(new BlockParameter
+        {
+            Name = "Condition",
+            Label = "条件",
+            TypeName = "bool",
+            InputType = ParameterInputType.Block,
+            Value = "true"
+        });
+
+        // else用の内部ブロックコレクションを追加
         AdditionalInnerBlocks.Add(new ObservableCollection<BlockBase>());
-        Height = 80;
+    }
+
+    public override string CodeOutput(int level)
+    {
+        var condition = Parameters[0].GetValueAsString();
+        var ifCode = GenerateInnerBlocksCode(level);
+        var elseCode = GenerateAdditionalInnerBlocksCode(level, 0);
+
+        var code = $"{GetIndent(level)}if ({condition})\n{GetIndent(level)}{{\n{ifCode}\n{GetIndent(level)}}}\n{GetIndent(level)}else\n{GetIndent(level)}{{\n{elseCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
+        return code;
+    }
+
+    /// <summary>
+    /// 追加の内部ブロック（else節など）のコードを生成
+    /// </summary>
+    protected string GenerateAdditionalInnerBlocksCode(int level, int index)
+    {
+        if (AdditionalInnerBlocks.Count <= index || AdditionalInnerBlocks[index].Count == 0)
+            return GetIndent(level + 1) + "// 空のブロック";
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var block in AdditionalInnerBlocks[index])
+        {
+            sb.AppendLine(block.CodeOutput(level + 1));
+        }
+        return sb.ToString().TrimEnd();
     }
 }
 
 /// <summary>
-/// Whileブロック
+/// whileブロック
 /// </summary>
 public class WhileBlock : BlockBase
 {
     public override BlockType BlockType => BlockType.ControlStructure;
     public override BlockCategory Category => BlockCategory.Control;
     public override string DisplayName => "～の間繰り返す";
-    public override string CodeTemplate => "while ({0}) {{ }}";
+    public override string CodeTemplate => "while ({0})\n{{\n{1}\n}}";
 
     public WhileBlock()
     {
@@ -84,10 +103,9 @@ public class WhileBlock : BlockBase
             Name = "Condition",
             Label = "条件",
             TypeName = "bool",
-            InputType = ParameterInputType.Block
+            InputType = ParameterInputType.Block,
+            Value = "true"
         });
-
-        Height = 60;
     }
 
     public override string CodeOutput(int level)
@@ -95,26 +113,27 @@ public class WhileBlock : BlockBase
         var condition = Parameters[0].GetValueAsString();
         var innerCode = GenerateInnerBlocksCode(level);
 
-        return $"{GetIndent(level)}while ({condition})\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
+        var code = $"{GetIndent(level)}while ({condition})\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
+        return code;
     }
 }
 
 /// <summary>
-/// Forブロック
+/// forブロック
 /// </summary>
 public class ForBlock : BlockBase
 {
     public override BlockType BlockType => BlockType.ControlStructure;
     public override BlockCategory Category => BlockCategory.Control;
     public override string DisplayName => "回数繰り返す";
-    public override string CodeTemplate => "for (int {0} = 0; {0} < {1}; {0}++) {{ }}";
+    public override string CodeTemplate => "for (int {0} = 0; {0} < {1}; {0}++)\n{{\n{2}\n}}";
 
     public ForBlock()
     {
         Parameters.Add(new BlockParameter
         {
-            Name = "Counter",
-            Label = "カウンタ変数",
+            Name = "VariableName",
+            Label = "変数名",
             TypeName = "string",
             InputType = ParameterInputType.Text,
             Value = "i"
@@ -125,19 +144,19 @@ public class ForBlock : BlockBase
             Name = "Count",
             Label = "回数",
             TypeName = "int",
-            InputType = ParameterInputType.Block
+            InputType = ParameterInputType.Block,
+            Value = "10"
         });
-
-        Height = 60;
     }
 
     public override string CodeOutput(int level)
     {
-        var counter = Parameters[0].GetValueAsString();
+        var varName = Parameters[0].GetValueAsString();
         var count = Parameters[1].GetValueAsString();
         var innerCode = GenerateInnerBlocksCode(level);
 
-        return $"{GetIndent(level)}for (int {counter} = 0; {counter} < {count}; {counter}++)\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
+        var code = $"{GetIndent(level)}for (int {varName} = 0; {varName} < {count}; {varName}++)\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
+        return code;
     }
 
     protected override void AddDefinedVariables(List<VariableInfo> variables)
@@ -152,21 +171,21 @@ public class ForBlock : BlockBase
 }
 
 /// <summary>
-/// ForEachブロック
+/// foreachブロック
 /// </summary>
 public class ForEachBlock : BlockBase
 {
     public override BlockType BlockType => BlockType.ControlStructure;
     public override BlockCategory Category => BlockCategory.Control;
     public override string DisplayName => "各要素について繰り返す";
-    public override string CodeTemplate => "foreach (var {0} in {1}) {{ }}";
+    public override string CodeTemplate => "foreach (var {0} in {1})\n{{\n{2}\n}}";
 
     public ForEachBlock()
     {
         Parameters.Add(new BlockParameter
         {
-            Name = "Item",
-            Label = "要素変数",
+            Name = "VariableName",
+            Label = "変数名",
             TypeName = "string",
             InputType = ParameterInputType.Text,
             Value = "item"
@@ -177,19 +196,19 @@ public class ForEachBlock : BlockBase
             Name = "Collection",
             Label = "コレクション",
             TypeName = "object",
-            InputType = ParameterInputType.Block
+            InputType = ParameterInputType.Block,
+            Value = "array"
         });
-
-        Height = 60;
     }
 
     public override string CodeOutput(int level)
     {
-        var item = Parameters[0].GetValueAsString();
+        var varName = Parameters[0].GetValueAsString();
         var collection = Parameters[1].GetValueAsString();
         var innerCode = GenerateInnerBlocksCode(level);
 
-        return $"{GetIndent(level)}foreach (var {item} in {collection})\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
+        var code = $"{GetIndent(level)}foreach (var {varName} in {collection})\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
+        return code;
     }
 
     protected override void AddDefinedVariables(List<VariableInfo> variables)
@@ -204,14 +223,16 @@ public class ForEachBlock : BlockBase
 }
 
 /// <summary>
-/// Breakブロック
+/// breakブロック
 /// </summary>
 public class BreakBlock : BlockBase
 {
-    public override BlockType BlockType => BlockType.Terminal;
+    public override BlockType BlockType => BlockType.Statement;
     public override BlockCategory Category => BlockCategory.Control;
     public override string DisplayName => "繰り返しを抜ける";
     public override string CodeTemplate => "break;";
+
+    public BreakBlock() { }
 
     public override string CodeOutput(int level)
     {
@@ -220,14 +241,16 @@ public class BreakBlock : BlockBase
 }
 
 /// <summary>
-/// Continueブロック
+/// continueブロック
 /// </summary>
 public class ContinueBlock : BlockBase
 {
-    public override BlockType BlockType => BlockType.Terminal;
+    public override BlockType BlockType => BlockType.Statement;
     public override BlockCategory Category => BlockCategory.Control;
     public override string DisplayName => "次の繰り返しへ";
     public override string CodeTemplate => "continue;";
+
+    public ContinueBlock() { }
 
     public override string CodeOutput(int level)
     {

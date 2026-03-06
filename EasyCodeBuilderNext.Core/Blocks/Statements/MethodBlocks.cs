@@ -1,39 +1,69 @@
 using EasyCodeBuilderNext.Core.Models;
+using System.Collections.ObjectModel;
 
 namespace EasyCodeBuilderNext.Core.Blocks.Statements;
 
 /// <summary>
-/// Return文ブロック
+/// メソッド定義ブロック
 /// </summary>
-public class ReturnBlock : BlockBase
+public class MethodDefineBlock : BlockBase
 {
-    public override BlockType BlockType => BlockType.Terminal;
+    public override BlockType BlockType => BlockType.Statement;
     public override BlockCategory Category => BlockCategory.Methods;
-    public override string DisplayName => "戻り値";
-    public override string CodeTemplate => "return {0};";
+    public override string DisplayName => "メソッドを定義";
+    public override string CodeTemplate => "{0} {1}({2})\n{{\n{3}\n}}";
 
-    public ReturnBlock()
+    public MethodDefineBlock()
     {
         Parameters.Add(new BlockParameter
         {
-            Name = "Value",
-            Label = "値",
-            TypeName = "object",
-            InputType = ParameterInputType.Block,
+            Name = "ReturnType",
+            Label = "戻り値の型",
+            TypeName = "string",
+            InputType = ParameterInputType.TypeSelector,
+            Value = "void"
+        });
+
+        Parameters.Add(new BlockParameter
+        {
+            Name = "MethodName",
+            Label = "メソッド名",
+            TypeName = "string",
+            InputType = ParameterInputType.Text,
+            Value = "MyMethod"
+        });
+
+        Parameters.Add(new BlockParameter
+        {
+            Name = "Parameters",
+            Label = "パラメータ",
+            TypeName = "string",
+            InputType = ParameterInputType.Text,
+            Value = "",
             IsRequired = false
+        });
+
+        Parameters.Add(new BlockParameter
+        {
+            Name = "IsStatic",
+            Label = "静的",
+            TypeName = "bool",
+            InputType = ParameterInputType.Checkbox,
+            Value = "false"
         });
     }
 
     public override string CodeOutput(int level)
     {
-        var value = Parameters[0].GetValueAsString();
+        var returnType = Parameters[0].GetValueAsString();
+        var methodName = Parameters[1].GetValueAsString();
+        var parameters = Parameters[2].GetValueAsString();
+        var isStatic = Parameters[3].GetValueAsString() == "true";
+        var innerCode = GenerateInnerBlocksCode(level);
 
-        if (string.IsNullOrEmpty(value))
-        {
-            return $"{GetIndent(level)}return;";
-        }
-
-        return $"{GetIndent(level)}return {value};";
+        var staticModifier = isStatic ? "static " : "";
+        var code = $"{GetIndent(level)}public {staticModifier}{returnType} {methodName}({parameters})\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
+        return code;
     }
 }
 
@@ -54,7 +84,7 @@ public class MethodCallBlock : BlockBase
             Name = "ObjectName",
             Label = "オブジェクト",
             TypeName = "string",
-            InputType = ParameterInputType.Variable,
+            InputType = ParameterInputType.Text,
             Value = "this"
         });
 
@@ -73,6 +103,7 @@ public class MethodCallBlock : BlockBase
             Label = "引数",
             TypeName = "string",
             InputType = ParameterInputType.Text,
+            Value = "",
             IsRequired = false
         });
     }
@@ -128,6 +159,7 @@ public class StaticMethodCallBlock : BlockBase
             Label = "引数",
             TypeName = "string",
             InputType = ParameterInputType.Text,
+            Value = "",
             IsRequired = false
         });
     }
@@ -143,86 +175,37 @@ public class StaticMethodCallBlock : BlockBase
 }
 
 /// <summary>
-/// プロパティアクセスブロック
+/// returnブロック
 /// </summary>
-public class PropertyAccessBlock : BlockBase
+public class ReturnBlock : BlockBase
 {
     public override BlockType BlockType => BlockType.Statement;
-    public override BlockCategory Category => BlockCategory.Classes;
-    public override string DisplayName => "プロパティアクセス";
-    public override string CodeTemplate => "{0}.{1};";
+    public override BlockCategory Category => BlockCategory.Methods;
+    public override string DisplayName => "戻り値";
+    public override string CodeTemplate => "return {0};";
 
-    public PropertyAccessBlock()
+    public ReturnBlock()
     {
-        Parameters.Add(new BlockParameter
-        {
-            Name = "ObjectName",
-            Label = "オブジェクト",
-            TypeName = "string",
-            InputType = ParameterInputType.Variable
-        });
-
-        Parameters.Add(new BlockParameter
-        {
-            Name = "PropertyName",
-            Label = "プロパティ名",
-            TypeName = "string",
-            InputType = ParameterInputType.Text
-        });
-    }
-
-    public override string CodeOutput(int level)
-    {
-        var objectName = Parameters[0].GetValueAsString();
-        var propertyName = Parameters[1].GetValueAsString();
-
-        return $"{GetIndent(level)}{objectName}.{propertyName};{GenerateNextBlockCode(level)}";
-    }
-}
-
-/// <summary>
-/// プロパティ代入ブロック
-/// </summary>
-public class PropertyAssignBlock : BlockBase
-{
-    public override BlockType BlockType => BlockType.Statement;
-    public override BlockCategory Category => BlockCategory.Classes;
-    public override string DisplayName => "プロパティに代入";
-    public override string CodeTemplate => "{0}.{1} = {2};";
-
-    public PropertyAssignBlock()
-    {
-        Parameters.Add(new BlockParameter
-        {
-            Name = "ObjectName",
-            Label = "オブジェクト",
-            TypeName = "string",
-            InputType = ParameterInputType.Variable
-        });
-
-        Parameters.Add(new BlockParameter
-        {
-            Name = "PropertyName",
-            Label = "プロパティ名",
-            TypeName = "string",
-            InputType = ParameterInputType.Text
-        });
-
         Parameters.Add(new BlockParameter
         {
             Name = "Value",
             Label = "値",
             TypeName = "object",
-            InputType = ParameterInputType.Block
+            InputType = ParameterInputType.Block,
+            Value = "",
+            IsRequired = false
         });
     }
 
     public override string CodeOutput(int level)
     {
-        var objectName = Parameters[0].GetValueAsString();
-        var propertyName = Parameters[1].GetValueAsString();
-        var value = Parameters[2].GetValueAsString();
+        var value = Parameters[0].GetValueAsString();
 
-        return $"{GetIndent(level)}{objectName}.{propertyName} = {value};{GenerateNextBlockCode(level)}";
+        if (string.IsNullOrEmpty(value))
+        {
+            return $"{GetIndent(level)}return;{GenerateNextBlockCode(level)}";
+        }
+
+        return $"{GetIndent(level)}return {value};{GenerateNextBlockCode(level)}";
     }
 }
