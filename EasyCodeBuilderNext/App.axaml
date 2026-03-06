@@ -20,36 +20,6 @@
     <Application.Styles>
         <FluentTheme />
 
-        <!-- パズルブロックスタイル -->
-        <Style Selector="controls|PuzzleBlock">
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-
-        <Style Selector="controls|PuzzleBlock:pointerover /template/ ContentPresenter">
-            <Setter Property="Opacity" Value="0.9"/>
-        </Style>
-
-        <Style Selector="controls|PuzzleBlock:selected /template/ ContentPresenter">
-            <Setter Property="BoxShadow" Value="0 0 0 2 #4C97FF"/>
-        </Style>
-
-        <Style Selector="controls|PuzzleBlock:dragging">
-            <Setter Property="Opacity" Value="0.7"/>
-            <Setter Property="ZIndex" Value="1000"/>
-        </Style>
-
-        <Style Selector="controls|PuzzleBlock:snaptarget /template/ ContentPresenter">
-            <Setter Property="BoxShadow" Value="0 0 0 3 #59C059"/>
-        </Style>
-
-        <!-- コードキャンバススタイル -->
-        <Style Selector="controls|CodeCanvas">
-            <Setter Property="Background" Value="#F8F8F8"/>
-        </Style>
 
         <!-- メニュースタイル -->
         <Style Selector="Menu">

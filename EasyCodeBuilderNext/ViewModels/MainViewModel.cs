@@ -55,9 +55,12 @@ public partial class MainViewModel : ViewModelBase
         _blockFactory = new BlockFactory(_typeRegistry, _pluginLoader);
         LoadBlockTemplates();
 
+        Debug.WriteLine($"MainViewModel constructor: BlockTemplates.Count = {BlockTemplates.Count}");
+
         // デフォルトのオブジェクトを追加
         var programClass = Project.AddObject("Program");
         SelectedObject = programClass;
+        Debug.WriteLine($"SelectedObject: {SelectedObject?.Name}");
     }
 
     private void LoadBlockTemplates()
@@ -90,6 +93,9 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void AddBlock(BlockTemplate template)
     {
+        Debug.WriteLine($"AddBlock called: {template?.DisplayName ?? "null"}");
+        Debug.WriteLine($"SelectedObject: {SelectedObject?.Name ?? "null"}");
+
         if (SelectedObject != null)
         {
             var block = template.Create();
@@ -98,6 +104,9 @@ public partial class MainViewModel : ViewModelBase
             block.OwnerObject = SelectedObject;
             SelectedObject.Blocks.Add(block);
             SelectedBlock = block;
+
+            Debug.WriteLine($"Block added: {block.DisplayName}, Position: ({block.X}, {block.Y})");
+            Debug.WriteLine($"SelectedObject.Blocks.Count: {SelectedObject.Blocks.Count}");
         }
     }
 
