@@ -28,19 +28,24 @@ public class PuzzleBlock : ContentControl
     private Point _dragStart;
     private double _offsetX;
     private double _offsetY;
-    private Border? _border;
-    private TextBlock? _text;
-    private Border? _topConnector;
-    private Border? _bottomConnector;
     private PuzzleBlock? _snapCandidate;
+    private bool _snapToBottom; // true: 相手の下に接続, false: 相手の内側に接続
 
-    // スナップ距離の閾値
-    private const double SnapThreshold = 30;
+    private const double SnapThreshold = 40;
+    private const double BlockWidth = 180;
+    private const double BlockHeight = 40;
+    private const double ConnectorSize = 12;
+    private const double InnerIndent = 20;
+
+    // ブロックの実際のサイズ（制御構造は動的に変わる）
+    public double ActualBlockHeight { get; private set; } = BlockHeight;
 
     public PuzzleBlock()
     {
-        Width = 150;
-        Height = 60;
+        Width = BlockWidth;
+        Height = BlockHeight;
+        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+        VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -49,17 +54,14 @@ public class PuzzleBlock : ContentControl
 
         if (change.Property == BlockProperty)
         {
-            // Blockプロパティが変更されたらビジュアルを再構築
             BuildVisualTree();
             UpdatePosition();
 
-            // 古いBlockのイベント購読を解除
             if (change.OldValue is BlockBase oldBlock)
             {
                 oldBlock.PropertyChanged -= Block_PropertyChanged;
             }
 
-            // 新しいBlockのイベントを購読
             if (change.NewValue is BlockBase newBlock)
             {
                 newBlock.PropertyChanged += Block_PropertyChanged;
@@ -91,23 +93,8 @@ public class PuzzleBlock : ContentControl
         }
         else if (e.PropertyName == nameof(BlockBase.IsHighlighted))
         {
-            UpdateHighlightState();
-        }
-    }
-
-    private void UpdateHighlightState()
-    {
-        if (_border == null || Block == null) return;
-
-        if (Block.IsHighlighted)
-        {
-            _border.BorderThickness = new Thickness(3);
-            _border.BorderBrush = Brushes.Yellow;
-        }
-        else
-        {
-            _border.BorderThickness = new Thickness(0);
-            _border.BorderBrush = Brushes.Transparent;
+            // 再描画をトリガー
+            InvalidateVisual();
         }
     }
 
@@ -126,83 +113,199 @@ public class PuzzleBlock : ContentControl
         if (Block == null) return;
 
         var color = Color.Parse(Block.Category.GetColor());
-        var darkerColor = DarkenColor(color, 0.2f);
+        var darkerColor = DarkenColor(color, 0.15f);
+        var lighterColor = Color.FromRgb(
+            (byte)Math.Min(255, color.R + 30),
+            (byte)Math.Min(255, color.G + 30),
+            (byte)Math.Min(255, color.B + 30)
+        );
 
-        // メインコンテナ
         var mainPanel = new Grid();
 
-        // コネクタ表示用のオーバーレイ
-        var connectorPanel = new Canvas();
-
-        // 上部コネクタ（凹み）
-        if (Block.HasTopConnector)
+        if (Block.BlockType == BlockType.ControlStructure)
         {
-            _topConnector = new Border
-            {
-                Width = 30,
-                Height = 8,
-                Background = new SolidColorBrush(darkerColor),
-                CornerRadius = new CornerRadius(0, 0, 4, 4),
-                IsVisible = true
-            };
-            Canvas.SetLeft(_topConnector, 20);
-            Canvas.SetTop(_topConnector, 0);
-            connectorPanel.Children.Add(_topConnector);
+            // 制御構造（if, while, for）- C字型
+            BuildControlStructureBlock(mainPanel, color, darkerColor, lighterColor);
+        }
+        else
+        {
+            // 通常のステートメントブロック
+            BuildStatementBlock(mainPanel, color, darkerColor, lighterColor);
         }
 
-        // 下部コネクタ（凸）
-        if (Block.HasBottomConnector)
-        {
-            _bottomConnector = new Border
-            {
-                Width = 30,
-                Height = 8,
-                Background = new SolidColorBrush(darkerColor),
-                CornerRadius = new CornerRadius(4, 4, 0, 0),
-                IsVisible = true
-            };
-            Canvas.SetLeft(_bottomConnector, 20);
-            Canvas.SetBottom(_bottomConnector, 0);
-            connectorPanel.Children.Add(_bottomConnector);
-        }
+        Content = mainPanel;
+    }
 
-        // メインボディ
-        _border = new Border
-        {
-            Background = new SolidColorBrush(color),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(12, 10, 12, 10),
-            Cursor = Cursor.Parse("Hand"),
-            Margin = new Thickness(0, Block.HasTopConnector ? 6 : 0, 0, Block.HasBottomConnector ? 6 : 0)
-        };
+    private void BuildStatementBlock(Grid mainPanel, Color color, Color darkerColor, Color lighterColor)
+    {
+        var path = CreateStatementPath(color, darkerColor, lighterColor);
+        mainPanel.Children.Add(path);
 
-        _text = new TextBlock
+        // テキスト
+        var textBlock = new TextBlock
         {
-            Text = Block.DisplayName,
+            Text = Block!.DisplayName,
             Foreground = Brushes.White,
             FontSize = 13,
             FontWeight = FontWeight.Medium,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Margin = new Thickness(10, 5, 10, 5),
             TextWrapping = TextWrapping.Wrap
         };
+        mainPanel.Children.Add(textBlock);
 
-        _border.Child = _text;
+        Height = BlockHeight;
+        ActualBlockHeight = BlockHeight;
+    }
 
-        mainPanel.Children.Add(_border);
-        mainPanel.Children.Add(connectorPanel);
+    private void BuildControlStructureBlock(Grid mainPanel, Color color, Color darkerColor, Color lighterColor)
+    {
+        // 内部ブロックの数に応じて高さを計算
+        double innerHeight = 60; // 最小の内部高さ
+        if (Block!.InnerBlocks.Count > 0)
+        {
+            innerHeight = 40; // 各内部ブロックの高さ分
+        }
 
-        Content = mainPanel;
+        double totalHeight = BlockHeight + innerHeight + BlockHeight; // ヘッダー + 内部 + フッター
+        Height = totalHeight;
+        ActualBlockHeight = totalHeight;
 
-        // ハイライト状態を更新
-        UpdateHighlightState();
+        var path = CreateControlStructurePath(color, darkerColor, lighterColor, innerHeight);
+        mainPanel.Children.Add(path);
+
+        // ヘッダーテキスト
+        var headerText = new TextBlock
+        {
+            Text = Block.DisplayName,
+            Foreground = Brushes.White,
+            FontSize = 13,
+            FontWeight = FontWeight.Medium,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+            Margin = new Thickness(25, 8, 10, 0)
+        };
+        mainPanel.Children.Add(headerText);
+
+        // 内部エリアのラベル
+        var innerLabel = new TextBlock
+        {
+            Text = "ここにブロックを追加",
+            Foreground = new SolidColorBrush(Color.FromArgb(100, 255, 255, 255)),
+            FontSize = 11,
+            FontStyle = FontStyle.Italic,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Margin = new Thickness(0, BlockHeight + 10, 0, 0)
+        };
+        mainPanel.Children.Add(innerLabel);
+    }
+
+    private Path CreateStatementPath(Color color, Color darkerColor, Color lighterColor)
+    {
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            double w = BlockWidth;
+            double h = BlockHeight;
+            double c = ConnectorSize;
+            double r = 6; // 角丸
+
+            // パズルピースの形状（上に凹み、下に凸）
+            context.BeginFigure(new Point(0, c), true);
+            context.LineTo(new Point(15, c));
+            context.LineTo(new Point(20, 0)); // 上部の凹み
+            context.LineTo(new Point(35, 0));
+            context.LineTo(new Point(40, c));
+            context.LineTo(new Point(w - r, c));
+            context.ArcTo(new Point(w, c + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(w, h - c - r));
+            context.ArcTo(new Point(w - r, h - c), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(40, h - c));
+            context.LineTo(new Point(35, h)); // 下部の凸
+            context.LineTo(new Point(20, h));
+            context.LineTo(new Point(15, h - c));
+            context.LineTo(new Point(r, h - c));
+            context.ArcTo(new Point(0, h - c - r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(0, c + r));
+            context.ArcTo(new Point(r, c), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.EndFigure(true);
+        }
+
+        return new Path
+        {
+            Data = geometry,
+            Fill = new SolidColorBrush(color),
+            Stroke = new SolidColorBrush(darkerColor),
+            StrokeThickness = 1.5
+        };
+    }
+
+    private Path CreateControlStructurePath(Color color, Color darkerColor, Color lighterColor, double innerHeight)
+    {
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            double w = BlockWidth;
+            double headerH = BlockHeight;
+            double innerH = innerHeight;
+            double footerH = BlockHeight;
+            double totalH = headerH + innerH + footerH;
+            double c = ConnectorSize;
+            double indent = InnerIndent;
+            double r = 6;
+
+            // C字型のパズルブロック
+            context.BeginFigure(new Point(0, c), true);
+
+            // 上部ヘッダー
+            context.LineTo(new Point(15, c));
+            context.LineTo(new Point(20, 0)); // 上部の凹み
+            context.LineTo(new Point(35, 0));
+            context.LineTo(new Point(40, c));
+            context.LineTo(new Point(w - r, c));
+            context.ArcTo(new Point(w, c + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(w, headerH - r));
+            context.ArcTo(new Point(w - r, headerH), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 右側から内側へ（内部ブロックエリアの開始）
+            context.LineTo(new Point(indent + r, headerH));
+            context.ArcTo(new Point(indent, headerH + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(indent, headerH + innerH - r));
+            context.ArcTo(new Point(indent + r, headerH + innerH), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // フッター（内部ブロックエリアの終わり）
+            context.LineTo(new Point(w - r, headerH + innerH));
+            context.ArcTo(new Point(w, headerH + innerH + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(w, totalH - c - r));
+            context.ArcTo(new Point(w - r, totalH - c), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            context.LineTo(new Point(40, totalH - c));
+            context.LineTo(new Point(35, totalH)); // 下部の凸
+            context.LineTo(new Point(20, totalH));
+            context.LineTo(new Point(15, totalH - c));
+            context.LineTo(new Point(r, totalH - c));
+            context.ArcTo(new Point(0, totalH - c - r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(0, c + r));
+            context.ArcTo(new Point(r, c), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            context.EndFigure(true);
+        }
+
+        return new Path
+        {
+            Data = geometry,
+            Fill = new SolidColorBrush(color),
+            Stroke = new SolidColorBrush(darkerColor),
+            StrokeThickness = 1.5
+        };
     }
 
     private void UpdatePosition()
     {
         if (Block == null) return;
 
-        // Canvasの直接の子要素を見つける
         Visual? visual = this;
         Visual? canvasChild = null;
 
@@ -224,6 +327,19 @@ public class PuzzleBlock : ContentControl
         }
     }
 
+    public override void Render(DrawingContext context)
+    {
+        base.Render(context);
+
+        // ハイライト表示
+        if (Block?.IsHighlighted == true)
+        {
+            var highlightBrush = new SolidColorBrush(Color.FromArgb(100, 255, 255, 0));
+            context.FillRectangle(highlightBrush, new Rect(0, 0, Bounds.Width, Bounds.Height), 8);
+            context.DrawRectangle(new Pen(Brushes.Yellow, 3), new Rect(0, 0, Bounds.Width, Bounds.Height), 8);
+        }
+    }
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
@@ -237,11 +353,10 @@ public class PuzzleBlock : ContentControl
         _offsetX = Block.X - _dragStart.X;
         _offsetY = Block.Y - _dragStart.Y;
 
-        // 既存の接続を解除
         Block.Detach();
 
         ZIndex = 1000;
-        Opacity = 0.8;
+        Opacity = 0.85;
         e.Pointer.Capture(this);
         e.Handled = true;
     }
@@ -258,7 +373,6 @@ public class PuzzleBlock : ContentControl
         Block.X = pos.X + _offsetX;
         Block.Y = pos.Y + _offsetY;
 
-        // スナップ候補を探す
         FindSnapCandidate();
 
         e.Handled = true;
@@ -281,48 +395,61 @@ public class PuzzleBlock : ContentControl
         }
 
         _snapCandidate = null;
+        _snapToBottom = false;
 
-        // このブロックの下部コネクタ位置
-        var myBottomY = Block.Y + Bounds.Height;
-        var myLeftX = Block.X;
-
-        // 他のブロックをチェック
         foreach (var child in canvas.Children)
         {
             if (child is PuzzleBlock otherBlock && otherBlock.Block != null && otherBlock != this)
             {
                 var other = otherBlock.Block;
 
-                // 上部に接続（このブロックの下に他のブロックを接続）
-                if (Block.HasBottomConnector && otherBlock.Block.HasTopConnector)
+                // 1. このブロックを他のブロックの下に接続
+                if (Block.HasTopConnector && other.HasBottomConnector)
                 {
-                    var otherTopY = other.Y;
-                    var otherLeftX = other.X;
-
-                    var dx = Math.Abs(myLeftX - otherLeftX);
-                    var dy = Math.Abs(myBottomY - otherTopY);
-
-                    if (dx < SnapThreshold && dy < SnapThreshold)
-                    {
-                        otherBlock.Block.IsHighlighted = true;
-                        _snapCandidate = otherBlock;
-                        return;
-                    }
-                }
-
-                // 下部に接続（このブロックを他のブロックの下に接続）
-                if (Block.HasTopConnector && otherBlock.Block.HasBottomConnector)
-                {
-                    var otherBottomY = other.Y + otherBlock.Bounds.Height;
-                    var otherLeftX = other.X;
-
-                    var dx = Math.Abs(myLeftX - otherLeftX);
+                    var otherBottomY = other.Y + otherBlock.ActualBlockHeight;
+                    var dx = Math.Abs(Block.X - other.X);
                     var dy = Math.Abs(Block.Y - otherBottomY);
 
                     if (dx < SnapThreshold && dy < SnapThreshold)
                     {
                         otherBlock.Block.IsHighlighted = true;
                         _snapCandidate = otherBlock;
+                        _snapToBottom = true;
+                        return;
+                    }
+                }
+
+                // 2. このブロックの下に他のブロックを接続
+                if (Block.HasBottomConnector && other.HasTopConnector)
+                {
+                    var myBottomY = Block.Y + ActualBlockHeight;
+                    var dx = Math.Abs(Block.X - other.X);
+                    var dy = Math.Abs(myBottomY - other.Y);
+
+                    if (dx < SnapThreshold && dy < SnapThreshold)
+                    {
+                        otherBlock.Block.IsHighlighted = true;
+                        _snapCandidate = otherBlock;
+                        _snapToBottom = false;
+                        return;
+                    }
+                }
+
+                // 3. 制御構造の内部に接続
+                if (other.BlockType == BlockType.ControlStructure && Block.HasTopConnector)
+                {
+                    double innerStartY = other.Y + BlockHeight;
+                    double innerEndY = other.Y + otherBlock.ActualBlockHeight - BlockHeight;
+                    double innerX = other.X + InnerIndent;
+
+                    var dx = Math.Abs(Block.X - innerX);
+                    var dy = Math.Abs(Block.Y - innerStartY);
+
+                    if (dx < SnapThreshold && dy < SnapThreshold && Block.Y < innerEndY)
+                    {
+                        otherBlock.Block.IsHighlighted = true;
+                        _snapCandidate = otherBlock;
+                        _snapToBottom = false;
                         return;
                     }
                 }
@@ -340,13 +467,11 @@ public class PuzzleBlock : ContentControl
         ZIndex = 0;
         e.Pointer.Capture(null);
 
-        // スナップ実行
         if (_snapCandidate != null && Block != null && _snapCandidate.Block != null)
         {
             PerformSnap();
         }
 
-        // 全てのハイライトを解除
         var canvas = this.FindAncestorOfType<Canvas>();
         if (canvas != null)
         {
@@ -370,46 +495,42 @@ public class PuzzleBlock : ContentControl
         var myBlock = Block;
         var otherBlock = _snapCandidate.Block;
 
-        // このブロックの下に他のブロックを接続する場合
-        if (myBlock.HasBottomConnector && otherBlock.HasTopConnector)
+        // このブロックを他のブロックの下に接続
+        if (_snapToBottom && myBlock.HasTopConnector && otherBlock.HasBottomConnector)
         {
-            var myBottomY = myBlock.Y + Bounds.Height;
-            var dx = Math.Abs(myBlock.X - otherBlock.X);
-            var dy = Math.Abs(myBottomY - otherBlock.Y);
+            var otherBottomY = otherBlock.Y + _snapCandidate.ActualBlockHeight;
+            myBlock.X = otherBlock.X;
+            myBlock.Y = otherBottomY;
 
-            if (dx < SnapThreshold && dy < SnapThreshold)
+            otherBlock.NextBlock = myBlock;
+            myBlock.PreviousBlock = otherBlock;
+
+            Debug.WriteLine($"Connected below: {otherBlock.DisplayName} -> {myBlock.DisplayName}");
+        }
+        // このブロックの下に他のブロックを接続
+        else if (!_snapToBottom && myBlock.HasBottomConnector && otherBlock.HasTopConnector)
+        {
+            // 制御構造の内部に接続する場合
+            if (myBlock.BlockType == BlockType.ControlStructure)
             {
-                // 位置をスナップ
+                otherBlock.X = myBlock.X + InnerIndent;
+                otherBlock.Y = myBlock.Y + BlockHeight;
+
+                myBlock.InnerBlocks.Add(otherBlock);
+                otherBlock.ParentBlock = myBlock;
+
+                Debug.WriteLine($"Connected inside: {myBlock.DisplayName} <- {otherBlock.DisplayName}");
+            }
+            else
+            {
+                var myBottomY = myBlock.Y + ActualBlockHeight;
                 otherBlock.X = myBlock.X;
                 otherBlock.Y = myBottomY;
 
-                // 接続関係を設定
                 myBlock.NextBlock = otherBlock;
                 otherBlock.PreviousBlock = myBlock;
 
                 Debug.WriteLine($"Connected: {myBlock.DisplayName} -> {otherBlock.DisplayName}");
-                return;
-            }
-        }
-
-        // このブロックを他のブロックの下に接続する場合
-        if (myBlock.HasTopConnector && otherBlock.HasBottomConnector)
-        {
-            var otherBottomY = otherBlock.Y + _snapCandidate.Bounds.Height;
-            var dx = Math.Abs(myBlock.X - otherBlock.X);
-            var dy = Math.Abs(myBlock.Y - otherBottomY);
-
-            if (dx < SnapThreshold && dy < SnapThreshold)
-            {
-                // 位置をスナップ
-                myBlock.X = otherBlock.X;
-                myBlock.Y = otherBottomY;
-
-                // 接続関係を設定
-                otherBlock.NextBlock = myBlock;
-                myBlock.PreviousBlock = otherBlock;
-
-                Debug.WriteLine($"Connected: {otherBlock.DisplayName} -> {myBlock.DisplayName}");
             }
         }
     }
