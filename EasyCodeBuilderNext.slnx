@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Project Path="EasyCodeBuilderNext.Android/EasyCodeBuilderNext.Android.csproj" />
+  <Project Path="EasyCodeBuilderNext.Browser/EasyCodeBuilderNext.Browser.csproj" />
+  <Project Path="EasyCodeBuilderNext.Desktop/EasyCodeBuilderNext.Desktop.csproj" />
+  <Project Path="EasyCodeBuilderNext.iOS/EasyCodeBuilderNext.iOS.csproj" />
+  <Project Path="EasyCodeBuilderNext/EasyCodeBuilderNext.csproj" />
+</Solution>
