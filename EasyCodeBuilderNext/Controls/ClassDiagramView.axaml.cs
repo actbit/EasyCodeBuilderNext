@@ -3,7 +3,10 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using EasyCodeBuilderNext.Core.Models;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace EasyCodeBuilderNext.Controls;
 
@@ -220,11 +223,9 @@ public partial class ClassDiagramView : UserControl
             });
         }
 
-        var content = new Grid RowDefinitions="Auto,*">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+        var content = new Grid();
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
 
         Grid.SetRow(titlePanel, 0);
         Grid.SetRow(membersPanel, 1);
@@ -236,7 +237,7 @@ public partial class ClassDiagramView : UserControl
 
         Canvas.SetLeft(border, x - NodeWidth / 2);
         Canvas.SetTop(border, y);
-        Panel.SetZIndex(border, 10);
+        border.SetValue(Panel.ZIndexProperty, 10);
 
         _diagramCanvas.Children.Add(border);
     }
@@ -262,7 +263,7 @@ public partial class ClassDiagramView : UserControl
                 StrokeDashArray = new Avalonia.Collections.AvaloniaList<double> { 4, 2 }
             };
 
-            Panel.SetZIndex(line, 1);
+            line.SetValue(Panel.ZIndexProperty, 1);
             _diagramCanvas.Children.Add(line);
 
             // 矢印（継承マーク）を描画
@@ -289,7 +290,7 @@ public partial class ClassDiagramView : UserControl
             StrokeThickness = 2
         };
 
-        Panel.SetZIndex(triangle, 5);
+        triangle.SetValue(Panel.ZIndexProperty, 5);
         _diagramCanvas.Children.Add(triangle);
     }
 }

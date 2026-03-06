@@ -1,7 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Media;
 using EasyCodeBuilderNext.Core.Blocks;
+using System;
 using System.Collections.ObjectModel;
 
 namespace EasyCodeBuilderNext.Controls;
@@ -56,14 +58,13 @@ public class CodeCanvas : Canvas
     public CodeCanvas()
     {
         Background = Brushes.Transparent;
-        AllowDrop = true;
 
         // イベントハンドラ
         PointerPressed += OnPointerPressed;
         PointerMoved += OnPointerMoved;
         PointerReleased += OnPointerReleased;
-        DragOver += OnDragOver;
-        Drop += OnDrop;
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)

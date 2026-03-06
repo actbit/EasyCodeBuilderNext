@@ -1,6 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using EasyCodeBuilderNext.Core.Models;
+using System;
 using System.Collections.ObjectModel;
 
 namespace EasyCodeBuilderNext.Controls;

@@ -2,7 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:EasyCodeBuilderNext.Controls"
              xmlns:models="clr-namespace:EasyCodeBuilderNext.Core.Models;assembly=EasyCodeBuilderNext.Core"
-             x:Class="EasyCodeBuilderNext.Controls.BlockPalette">
+             xmlns:plugin="clr-namespace:EasyCodeBuilderNext.Core.PluginSystem;assembly=EasyCodeBuilderNext.Core"
+             x:Class="EasyCodeBuilderNext.Controls.BlockPalette"
+             x:DataType="controls:BlockPalette">
 
   <UserControl.Styles>
     <Style Selector="Button.category-btn">
@@ -43,7 +45,7 @@
     <ScrollViewer Grid.Row="1">
       <ItemsControl ItemsSource="{Binding BlockTemplates}">
         <ItemsControl.ItemTemplate>
-          <DataTemplate>
+          <DataTemplate x:DataType="plugin:BlockTemplate">
             <Border Background="{Binding Category, Converter={StaticResource CategoryToColorConverter}}"
                     CornerRadius="8" Padding="8,4" Margin="4"
                     PointerPressed="OnBlockPointerPressed"

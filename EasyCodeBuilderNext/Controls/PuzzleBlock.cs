@@ -3,6 +3,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using EasyCodeBuilderNext.Core.Blocks;
 using EasyCodeBuilderNext.Core.Models;
+using System;
 
 namespace EasyCodeBuilderNext.Controls;
 
@@ -92,29 +93,29 @@ public class PuzzleBlock : TemplatedControl
     {
         if (IsDragging)
         {
-            PseudoClasses.Set(":dragging", true);
+            PseudoClasses.Add(":dragging");
         }
         else
         {
-            PseudoClasses.Set(":dragging", false);
+            PseudoClasses.Remove(":dragging");
         }
 
         if (IsSelected)
         {
-            PseudoClasses.Set(":selected", true);
+            PseudoClasses.Add(":selected");
         }
         else
         {
-            PseudoClasses.Set(":selected", false);
+            PseudoClasses.Remove(":selected");
         }
 
         if (IsSnapTarget)
         {
-            PseudoClasses.Set(":snaptarget", true);
+            PseudoClasses.Add(":snaptarget");
         }
         else
         {
-            PseudoClasses.Set(":snaptarget", false);
+            PseudoClasses.Remove(":snaptarget");
         }
     }
 
