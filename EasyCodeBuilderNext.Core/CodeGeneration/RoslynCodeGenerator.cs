@@ -366,7 +366,7 @@ public class RoslynCodeGenerator
         foreach (var block in rootBlocks)
         {
             // メソッド定義ブロックからメソッドを生成
-            if (block is BlockBaseStatements.MethodDefineBlock methodBlock)
+            if (block is MethodDefineBlock methodBlock)
             {
                 yield return GenerateMethodFromBlock(methodBlock);
             }
@@ -376,7 +376,7 @@ public class RoslynCodeGenerator
     /// <summary>
     /// メソッド定義ブロックからメソッドSyntaxを生成
     /// </summary>
-    private MethodDeclarationSyntax GenerateMethodFromBlock(Statements.MethodDefineBlock block)
+    private MethodDeclarationSyntax GenerateMethodFromBlock(MethodDefineBlock block)
     {
         var returnType = block.Parameters[0].GetValueAsString();
         var methodName = block.Parameters[1].GetValueAsString();
