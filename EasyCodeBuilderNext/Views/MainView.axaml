@@ -48,6 +48,8 @@
 										CornerRadius="8" Padding="8,6" Margin="4,2"
 										Tag="{Binding}"
 										PointerPressed="OnPaletteBlockPointerPressed"
+										PointerMoved="OnPaletteBlockPointerMoved"
+										PointerReleased="OnPaletteBlockPointerReleased"
 										Tapped="OnPaletteBlockTapped"
 										Cursor="Hand">
 									<StackPanel Spacing="2">

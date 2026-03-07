@@ -16,6 +16,9 @@ namespace EasyCodeBuilderNext.Views;
 public partial class MainView : UserControl
 {
     private BlockTemplate? _draggingTemplate;
+    private Point _pointerPressPosition;
+    private bool _isDraggingFromPalette;
+    private const double DragThreshold = 5.0; // ドラッグ開始のしきい値（ピクセル）
     private const double CanvasPadding = 200; // 余白
     private const double MinCanvasSize = 2000;
 
@@ -132,6 +135,13 @@ public partial class MainView : UserControl
     {
         Debug.WriteLine($"OnPaletteBlockTapped called");
 
+        // ドラッグ中の場合はタップを無視
+        if (_isDraggingFromPalette)
+        {
+            Debug.WriteLine("Ignoring tap during drag");
+            return;
+        }
+
         if (sender is Border border && border.Tag is BlockTemplate template)
         {
             Debug.WriteLine($"Template: {template.DisplayName}");
@@ -148,6 +158,9 @@ public partial class MainView : UserControl
 
                 Debug.WriteLine($"Block added: {block.DisplayName} at ({block.X}, {block.Y})");
                 Debug.WriteLine($"Total blocks: {vm.SelectedObject.Blocks.Count}");
+
+                // キャンバスリサイズを要求
+                UpdateCanvasSize();
             }
             else
             {
@@ -162,16 +175,59 @@ public partial class MainView : UserControl
 
         if (sender is Border border && border.Tag is BlockTemplate template)
         {
-            Debug.WriteLine($"Starting drag for: {template.DisplayName}");
             _draggingTemplate = template;
+            _pointerPressPosition = e.GetPosition(this);
+            _isDraggingFromPalette = false;
 
-            var dragData = new DataObject();
-            dragData.Set("BlockTemplate", template);
+            // ポインターをキャプチャして移動とリリースイベントを受け取る
+            e.Pointer.Capture(border);
 
-            DragDrop.DoDragDrop(e, dragData, DragDropEffects.Copy).ContinueWith(_ =>
+            Debug.WriteLine($"Prepared for potential drag: {template.DisplayName}");
+        }
+    }
+
+    private void OnPaletteBlockPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_draggingTemplate != null && !_isDraggingFromPalette)
+        {
+            var currentPosition = e.GetPosition(this);
+            var distance = Math.Sqrt(
+                Math.Pow(currentPosition.X - _pointerPressPosition.X, 2) +
+                Math.Pow(currentPosition.Y - _pointerPressPosition.Y, 2)
+            );
+
+            // しきい値を超えたらドラッグ開始
+            if (distance > DragThreshold)
             {
-                _draggingTemplate = null;
-            });
+                _isDraggingFromPalette = true;
+                Debug.WriteLine($"Starting drag for: {_draggingTemplate.DisplayName}");
+
+                var dragData = new DataObject();
+                dragData.Set("BlockTemplate", _draggingTemplate);
+
+                // ポインターキャプチャを解放
+                e.Pointer.Capture(null);
+
+                DragDrop.DoDragDrop(e, dragData, DragDropEffects.Copy).ContinueWith(_ =>
+                {
+                    _draggingTemplate = null;
+                    _isDraggingFromPalette = false;
+                });
+            }
+        }
+    }
+
+    private void OnPaletteBlockPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        Debug.WriteLine($"OnPaletteBlockPointerReleased called, isDragging={_isDraggingFromPalette}");
+
+        // ポインターキャプチャを解放
+        e.Pointer.Capture(null);
+
+        // ドラッグが開始されなかった場合はリセット
+        if (!_isDraggingFromPalette)
+        {
+            _draggingTemplate = null;
         }
     }
 
@@ -214,6 +270,9 @@ public partial class MainView : UserControl
                         vm.SelectedBlock = block;
 
                         Debug.WriteLine($"Block added at position ({block.X}, {block.Y})");
+
+                        // キャンバスリサイズを要求
+                        UpdateCanvasSize();
                     }
                     else
                     {
@@ -222,5 +281,9 @@ public partial class MainView : UserControl
                 }
             }
         }
+
+        // ドラッグ状態をリセット
+        _draggingTemplate = null;
+        _isDraggingFromPalette = false;
     }
 }
