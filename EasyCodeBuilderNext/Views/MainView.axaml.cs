@@ -1,10 +1,13 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using EasyCodeBuilderNext.Core.Blocks;
 using EasyCodeBuilderNext.Core.PluginSystem;
 using EasyCodeBuilderNext.ViewModels;
+using System;
 using System.Diagnostics;
 using System.Linq;
 
@@ -13,6 +16,17 @@ namespace EasyCodeBuilderNext.Views;
 public partial class MainView : UserControl
 {
     private BlockTemplate? _draggingTemplate;
+    private const double CanvasPadding = 200; // 余白
+    private const double MinCanvasSize = 2000;
+
+    public static readonly RoutedEvent<RoutedEventArgs> CanvasResizeNeededEvent =
+        RoutedEvent.Register<MainView, RoutedEventArgs>(nameof(CanvasResizeNeeded), RoutingStrategies.Bubble);
+
+    public event EventHandler<RoutedEventArgs>? CanvasResizeNeeded
+    {
+        add => AddHandler(CanvasResizeNeededEvent, value);
+        remove => RemoveHandler(CanvasResizeNeededEvent, value);
+    }
 
     public MainView()
     {
@@ -21,6 +35,47 @@ public partial class MainView : UserControl
 
         this.AddHandler(DragDrop.DropEvent, OnCanvasDrop);
         this.AddHandler(DragDrop.DragOverEvent, OnCanvasDragOver);
+
+        // キャンバスリサイズイベントを監視
+        this.AddHandler(CanvasResizeNeededEvent, OnCanvasResizeNeeded);
+    }
+
+    private void OnCanvasResizeNeeded(object? sender, RoutedEventArgs e)
+    {
+        UpdateCanvasSize();
+    }
+
+    public void UpdateCanvasSize()
+    {
+        var canvas = this.FindDescendantOfType<Canvas>();
+        if (canvas == null) return;
+
+        var vm = DataContext as MainViewModel;
+        if (vm?.SelectedObject?.Blocks == null) return;
+
+        double maxX = MinCanvasSize;
+        double maxY = MinCanvasSize;
+
+        foreach (var block in vm.SelectedObject.Blocks)
+        {
+            var blockRight = block.X + 250; // ブロック幅を考慮
+            var blockBottom = block.Y + 150; // ブロック高さを考慮（制御構造の場合大きい）
+
+            if (blockRight > maxX) maxX = blockRight;
+            if (blockBottom > maxY) maxY = blockBottom;
+        }
+
+        // 余白を追加
+        maxX += CanvasPadding;
+        maxY += CanvasPadding;
+
+        // 現在のサイズより大きい場合のみ更新
+        if (maxX > canvas.Width || maxY > canvas.Height)
+        {
+            canvas.Width = maxX;
+            canvas.Height = maxY;
+            Debug.WriteLine($"Canvas resized to: {maxX} x {maxY}");
+        }
     }
 
     private void OnBlockTapped(object? sender, TappedEventArgs e)

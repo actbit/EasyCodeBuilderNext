@@ -156,6 +156,13 @@ public class BlockFactory
 
         // メソッドカテゴリ
         templates.Add(new BlockTemplate(
+            "MainMethod",
+            "プログラム開始 (Main)",
+            BlockCategory.Methods,
+            () => new MainMethodBlock(),
+            "プログラムの開始点"));
+
+        templates.Add(new BlockTemplate(
             "MethodDefine",
             "メソッドを定義",
             BlockCategory.Methods,

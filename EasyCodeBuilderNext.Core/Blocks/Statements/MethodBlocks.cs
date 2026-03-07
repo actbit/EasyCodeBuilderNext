@@ -4,14 +4,42 @@ using System.Collections.ObjectModel;
 namespace EasyCodeBuilderNext.Core.Blocks.Statements;
 
 /// <summary>
+/// Mainメソッドブロック（プログラムの開始点）
+/// </summary>
+public class MainMethodBlock : BlockBase
+{
+    public override BlockType BlockType => BlockType.Hat;
+    public override BlockCategory Category => BlockCategory.Methods;
+    public override string DisplayName => "プログラム開始 (Main)";
+    public override string CodeTemplate => "static void Main(string[] args)\n{{\n{0}\n}}";
+
+    public override bool HasTopConnector => false;
+    public override bool HasBottomConnector => true;
+
+    public MainMethodBlock()
+    {
+        // 内部ブロック用
+    }
+
+    public override string CodeOutput(int level)
+    {
+        var innerCode = GenerateInnerBlocksCode(level);
+        return $"{GetIndent(level)}static void Main(string[] args)\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}";
+    }
+}
+
+/// <summary>
 /// メソッド定義ブロック
 /// </summary>
 public class MethodDefineBlock : BlockBase
 {
-    public override BlockType BlockType => BlockType.Statement;
+    public override BlockType BlockType => BlockType.Definition;
     public override BlockCategory Category => BlockCategory.Methods;
-    public override string DisplayName => "メソッドを定義";
+    public override string DisplayName => "メソッド定義: ～";
     public override string CodeTemplate => "{0} {1}({2})\n{{\n{3}\n}}";
+
+    public override bool HasTopConnector => false;
+    public override bool HasBottomConnector => false; // 下にはつなげない
 
     public MethodDefineBlock()
     {
@@ -20,9 +48,13 @@ public class MethodDefineBlock : BlockBase
             Name = "ReturnType",
             Label = "戻り値の型",
             TypeName = "string",
-            InputType = ParameterInputType.TypeSelector,
+            InputType = ParameterInputType.Dropdown,
             Value = "void"
         });
+        foreach (var option in new[] { "void", "int", "string", "bool", "double", "float", "object" })
+        {
+            Parameters[0].Options.Add(option);
+        }
 
         Parameters.Add(new BlockParameter
         {
@@ -49,7 +81,7 @@ public class MethodDefineBlock : BlockBase
             Label = "静的",
             TypeName = "bool",
             InputType = ParameterInputType.Checkbox,
-            Value = "false"
+            Value = false
         });
     }
 
@@ -58,12 +90,11 @@ public class MethodDefineBlock : BlockBase
         var returnType = Parameters[0].GetValueAsString();
         var methodName = Parameters[1].GetValueAsString();
         var parameters = Parameters[2].GetValueAsString();
-        var isStatic = Parameters[3].GetValueAsString() == "true";
+        var isStatic = (bool?)Parameters[3].Value == true;
         var innerCode = GenerateInnerBlocksCode(level);
 
         var staticModifier = isStatic ? "static " : "";
-        var code = $"{GetIndent(level)}public {staticModifier}{returnType} {methodName}({parameters})\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}{GenerateNextBlockCode(level)}";
-        return code;
+        return $"{GetIndent(level)}public {staticModifier}{returnType} {methodName}({parameters})\n{GetIndent(level)}{{\n{innerCode}\n{GetIndent(level)}}}";
     }
 }
 

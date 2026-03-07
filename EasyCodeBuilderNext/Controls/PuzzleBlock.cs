@@ -3,10 +3,12 @@ using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 using EasyCodeBuilderNext.Core.Blocks;
 using EasyCodeBuilderNext.Core.Models;
+using EasyCodeBuilderNext.Views;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -124,9 +126,14 @@ public class PuzzleBlock : ContentControl
 
         var mainPanel = new Grid();
 
+        // ブロックタイプに応じて適切なビルドメソッドを選択
         if (Block.BlockType == BlockType.ControlStructure)
         {
             BuildControlStructureBlock(mainPanel, color, darkerColor);
+        }
+        else if (Block.BlockType == BlockType.Hat || Block.BlockType == BlockType.Definition)
+        {
+            BuildHatBlock(mainPanel, color, darkerColor);
         }
         else
         {
@@ -136,50 +143,280 @@ public class PuzzleBlock : ContentControl
         Content = mainPanel;
     }
 
+    private void BuildHatBlock(Grid mainPanel, Color color, Color darkerColor)
+    {
+        // Hat型（開始ブロック）- 上部コネクタなし、下部コネクタあり（凹み）
+        var path = CreateHatPath(color, darkerColor);
+        mainPanel.Children.Add(path);
+
+        var contentPanel = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            Margin = new Thickness(10, 5, 10, 5),
+            Spacing = 5
+        };
+
+        AddParameterizedContent(contentPanel);
+        mainPanel.Children.Add(contentPanel);
+
+        Height = BlockHeight + ConnectorSize * 0.7; // 下部の凹み分を追加
+        ActualBlockHeight = BlockHeight;
+    }
+
+    private Path CreateHatPath(Color color, Color darkerColor)
+    {
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            double w = BlockWidth;
+            double h = BlockHeight;
+            double c = ConnectorSize;
+            double cw = 25;
+            double r = 6;
+
+            // Hat型：上部は丸い（コネクタなし）、下部は凹み
+            context.BeginFigure(new Point(0, r), true);
+            context.ArcTo(new Point(r, 0), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 上辺（丸い帽子型）
+            context.LineTo(new Point(w / 2 - 20, 0));
+            context.ArcTo(new Point(w / 2, -8), new Size(20, 10), 0, false, SweepDirection.Clockwise);
+            context.ArcTo(new Point(w / 2 + 20, 0), new Size(20, 10), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(w - r, 0));
+            context.ArcTo(new Point(w, r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 右辺
+            context.LineTo(new Point(w, h - r));
+            context.ArcTo(new Point(w - r, h), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 下辺（凹み）- Statementブロックと同じ深さ
+            context.LineTo(new Point(18 + cw, h));
+            context.LineTo(new Point(15 + cw, h + c * 0.7));
+            context.LineTo(new Point(18, h + c * 0.7));
+            context.LineTo(new Point(15, h));
+            context.LineTo(new Point(r, h));
+            context.ArcTo(new Point(0, h - r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+
+            // 左辺
+            context.LineTo(new Point(0, r));
+
+            context.EndFigure(true);
+        }
+
+        return new Path
+        {
+            Data = geometry,
+            Fill = new SolidColorBrush(color),
+            Stroke = new SolidColorBrush(darkerColor),
+            StrokeThickness = 1.5
+        };
+    }
+
     private void BuildStatementBlock(Grid mainPanel, Color color, Color darkerColor)
     {
         var path = CreateStatementPath(color, darkerColor);
         mainPanel.Children.Add(path);
 
-        var textBlock = new TextBlock
-        {
-            Text = Block!.DisplayName,
-            Foreground = Brushes.White,
-            FontSize = 13,
-            FontWeight = FontWeight.Medium,
-            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-            Margin = new Thickness(10, 5, 10, 5),
-            TextWrapping = TextWrapping.Wrap
-        };
-        mainPanel.Children.Add(textBlock);
+        double offset = ConnectorSize * 0.7;
 
-        Height = BlockHeight;
+        // パラメータ付きのコンテンツを作成
+        var contentPanel = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            Margin = new Thickness(10, 5 + offset, 10, 5),
+            Spacing = 5
+        };
+
+        // 表示名を追加（パラメータがある場合は分割して表示）
+        AddParameterizedContent(contentPanel);
+
+        mainPanel.Children.Add(contentPanel);
+
+        Height = BlockHeight + ConnectorSize * 0.7 + ConnectorSize * 0.7; // 上部凸 + 下部凹
         ActualBlockHeight = BlockHeight;
+    }
+
+    private void AddParameterizedContent(StackPanel contentPanel)
+    {
+        if (Block == null) return;
+
+        // パラメータがある場合は、「もし {条件} なら」のような形式で表示
+        if (Block.Parameters.Count > 0)
+        {
+            // 表示名をパラメータ位置で分割
+            var displayName = Block.DisplayName;
+            var parts = SplitDisplayName(displayName, Block.Parameters.Count);
+
+            for (int i = 0; i < parts.Count; i++)
+            {
+                // テキスト部分
+                if (!string.IsNullOrEmpty(parts[i].Text))
+                {
+                    contentPanel.Children.Add(new TextBlock
+                    {
+                        Text = parts[i].Text,
+                        Foreground = Brushes.White,
+                        FontSize = 13,
+                        FontWeight = FontWeight.Medium,
+                        VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                    });
+                }
+
+                // パラメータ入力部分
+                if (i < Block.Parameters.Count && parts[i].HasParameter)
+                {
+                    var param = Block.Parameters[i];
+                    var input = CreateParameterInput(param);
+                    contentPanel.Children.Add(input);
+                }
+            }
+        }
+        else
+        {
+            // パラメータがない場合は単純に表示名
+            contentPanel.Children.Add(new TextBlock
+            {
+                Text = Block.DisplayName,
+                Foreground = Brushes.White,
+                FontSize = 13,
+                FontWeight = FontWeight.Medium,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap
+            });
+        }
+    }
+
+    private List<(string Text, bool HasParameter)> SplitDisplayName(string displayName, int paramCount)
+    {
+        var result = new List<(string, bool)>();
+
+        // 「～」をパラメータ位置として扱う
+        var tildeParts = displayName.Split(new[] { '～' }, StringSplitOptions.None);
+
+        if (tildeParts.Length > 1)
+        {
+            for (int i = 0; i < tildeParts.Length; i++)
+            {
+                result.Add((tildeParts[i], i < paramCount));
+            }
+        }
+        else
+        {
+            // 「～」がない場合は表示名の最後にパラメータを追加
+            result.Add((displayName, paramCount > 0));
+            for (int i = 1; i < paramCount; i++)
+            {
+                result.Add(("", true));
+            }
+        }
+
+        return result;
+    }
+
+    private Control CreateParameterInput(BlockParameter param)
+    {
+        switch (param.InputType)
+        {
+            case ParameterInputType.Text:
+            case ParameterInputType.Variable:
+                var textBox = new TextBox
+                {
+                    Text = param.Value?.ToString() ?? param.DefaultValue?.ToString() ?? "",
+                    MinWidth = 60,
+                    MaxWidth = 100,
+                    Padding = new Thickness(6, 2),
+                    FontSize = 12,
+                    Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                    BorderThickness = new Thickness(0),
+                    CornerRadius = new CornerRadius(4)
+                };
+                textBox.TextChanged += (s, e) => param.Value = textBox.Text;
+                return textBox;
+
+            case ParameterInputType.Number:
+                var numBox = new TextBox
+                {
+                    Text = param.Value?.ToString() ?? param.DefaultValue?.ToString() ?? "0",
+                    MinWidth = 50,
+                    MaxWidth = 80,
+                    Padding = new Thickness(6, 2),
+                    FontSize = 12,
+                    Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                    BorderThickness = new Thickness(0),
+                    CornerRadius = new CornerRadius(4)
+                };
+                numBox.TextChanged += (s, e) =>
+                {
+                    if (double.TryParse(numBox.Text, out var num))
+                        param.Value = num;
+                };
+                return numBox;
+
+            case ParameterInputType.Dropdown:
+                var comboBox = new ComboBox
+                {
+                    ItemsSource = param.Options,
+                    SelectedItem = param.Value ?? param.DefaultValue ?? param.Options.FirstOrDefault(),
+                    MinWidth = 80,
+                    MaxWidth = 120,
+                    Padding = new Thickness(4, 2),
+                    FontSize = 11
+                };
+                comboBox.SelectionChanged += (s, e) => param.Value = comboBox.SelectedItem;
+                return comboBox;
+
+            case ParameterInputType.Checkbox:
+                var checkBox = new CheckBox
+                {
+                    IsChecked = param.Value as bool? ?? param.DefaultValue as bool? ?? false
+                };
+                checkBox.IsCheckedChanged += (s, e) => param.Value = checkBox.IsChecked;
+                return checkBox;
+
+            default:
+                var defaultBox = new TextBox
+                {
+                    Text = param.Value?.ToString() ?? "",
+                    MinWidth = 60,
+                    Padding = new Thickness(6, 2),
+                    FontSize = 12,
+                    Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                    BorderThickness = new Thickness(0),
+                    CornerRadius = new CornerRadius(4)
+                };
+                defaultBox.TextChanged += (s, e) => param.Value = defaultBox.Text;
+                return defaultBox;
+        }
     }
 
     private void BuildControlStructureBlock(Grid mainPanel, Color color, Color darkerColor)
     {
         double innerHeight = 60;
         double totalHeight = BlockHeight + innerHeight + BlockHeight;
-        Height = totalHeight;
+        double offset = ConnectorSize * 0.7;
+        Height = totalHeight + offset + offset; // 上部凸 + 下部凹分
         ActualBlockHeight = totalHeight;
 
         var path = CreateControlStructurePath(color, darkerColor, innerHeight);
         mainPanel.Children.Add(path);
 
-        var headerText = new TextBlock
+        // ヘッダー部分（パラメータ付き）
+        var headerPanel = new StackPanel
         {
-            Text = Block!.DisplayName,
-            Foreground = Brushes.White,
-            FontSize = 13,
-            FontWeight = FontWeight.Medium,
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
-            Margin = new Thickness(25, 8, 10, 0)
+            Margin = new Thickness(25, 8 + offset, 10, 0)
         };
-        mainPanel.Children.Add(headerText);
 
+        AddParameterizedContent(headerPanel);
+        mainPanel.Children.Add(headerPanel);
+
+        // 内部ラベル
         var innerLabel = new TextBlock
         {
             Text = "ブロックを追加",
@@ -188,7 +425,7 @@ public class PuzzleBlock : ContentControl
             FontStyle = FontStyle.Italic,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-            Margin = new Thickness(0, BlockHeight + 10, 0, 0)
+            Margin = new Thickness(0, BlockHeight + 10 + offset, 0, 0)
         };
         mainPanel.Children.Add(innerLabel);
     }
@@ -203,34 +440,35 @@ public class PuzzleBlock : ContentControl
             double c = ConnectorSize; // コネクタの高さ
             double cw = 25; // コネクタの幅
             double r = 6; // 角丸
+            double offset = c * 0.7; // 上部オフセット（凸の高さ分）
 
-            // Scratch風パズルピース形状
-            // 左上から開始
-            context.BeginFigure(new Point(0, r), true);
-            context.ArcTo(new Point(r, 0), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            // Scratch風パズルピース形状（上が凸、下が凹）
+            // 左上から開始（オフセットを考慮）
+            context.BeginFigure(new Point(0, r + offset), true);
+            context.ArcTo(new Point(r, offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
-            // 上辺（凹み部分）
-            context.LineTo(new Point(15, 0));
-            context.LineTo(new Point(18, c * 0.7));
-            context.LineTo(new Point(15 + cw, c * 0.7));
-            context.LineTo(new Point(18 + cw, 0));
-            context.LineTo(new Point(w - r, 0));
-            context.ArcTo(new Point(w, r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            // 上辺（凸部分 - 突起）
+            context.LineTo(new Point(15, offset));
+            context.LineTo(new Point(18, 0)); // 凸の先端（y=0）
+            context.LineTo(new Point(15 + cw, 0));
+            context.LineTo(new Point(18 + cw, offset));
+            context.LineTo(new Point(w - r, offset));
+            context.ArcTo(new Point(w, r + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
             // 右辺
-            context.LineTo(new Point(w, h - r));
-            context.ArcTo(new Point(w - r, h), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(w, h - r + offset));
+            context.ArcTo(new Point(w - r, h + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
-            // 下辺（凸部分）
-            context.LineTo(new Point(18 + cw, h));
-            context.LineTo(new Point(15 + cw, h - c * 0.7));
-            context.LineTo(new Point(18, h - c * 0.7));
-            context.LineTo(new Point(15, h));
-            context.LineTo(new Point(r, h));
-            context.ArcTo(new Point(0, h - r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            // 下辺（凹み部分 - 受け）
+            context.LineTo(new Point(18 + cw, h + offset));
+            context.LineTo(new Point(15 + cw, h + c * 1.4 + offset)); // 凹の最深部
+            context.LineTo(new Point(18, h + c * 1.4 + offset));
+            context.LineTo(new Point(15, h + offset));
+            context.LineTo(new Point(r, h + offset));
+            context.ArcTo(new Point(0, h - r + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
             // 左辺
-            context.LineTo(new Point(0, r));
+            context.LineTo(new Point(0, r + offset));
 
             context.EndFigure(true);
         }
@@ -257,49 +495,50 @@ public class PuzzleBlock : ContentControl
             double cw = 25;
             double indent = InnerIndent;
             double r = 6;
+            double offset = c * 0.7;
 
-            // 左上から開始
-            context.BeginFigure(new Point(0, r), true);
-            context.ArcTo(new Point(r, 0), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            // 左上から開始（オフセット考慮）
+            context.BeginFigure(new Point(0, r + offset), true);
+            context.ArcTo(new Point(r, offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
-            // 上辺（凹み）
-            context.LineTo(new Point(15, 0));
-            context.LineTo(new Point(18, c * 0.7));
-            context.LineTo(new Point(15 + cw, c * 0.7));
-            context.LineTo(new Point(18 + cw, 0));
-            context.LineTo(new Point(w - r, 0));
-            context.ArcTo(new Point(w, r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            // 上辺（凸 - 突起）
+            context.LineTo(new Point(15, offset));
+            context.LineTo(new Point(18, 0)); // 凸の先端（y=0）
+            context.LineTo(new Point(15 + cw, 0));
+            context.LineTo(new Point(18 + cw, offset));
+            context.LineTo(new Point(w - r, offset));
+            context.ArcTo(new Point(w, r + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
             // 右辺（ヘッダー部分）
-            context.LineTo(new Point(w, headerH - r));
-            context.ArcTo(new Point(w - r, headerH), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(w, headerH - r + offset));
+            context.ArcTo(new Point(w - r, headerH + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
             // ヘッダーから内側へ（インデント）
-            context.LineTo(new Point(indent + r, headerH));
-            context.ArcTo(new Point(indent, headerH + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(indent + r, headerH + offset));
+            context.ArcTo(new Point(indent, headerH + r + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
             // 内部左辺
-            context.LineTo(new Point(indent, headerH + innerH - r));
-            context.ArcTo(new Point(indent + r, headerH + innerH), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(indent, headerH + innerH - r + offset));
+            context.ArcTo(new Point(indent + r, headerH + innerH + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
             // 内部から右側へ
-            context.LineTo(new Point(w - r, headerH + innerH));
-            context.ArcTo(new Point(w, headerH + innerH + r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(w - r, headerH + innerH + offset));
+            context.ArcTo(new Point(w, headerH + innerH + r + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
             // 右辺（フッター部分）
-            context.LineTo(new Point(w, totalH - r));
-            context.ArcTo(new Point(w - r, totalH), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            context.LineTo(new Point(w, totalH - r + offset));
+            context.ArcTo(new Point(w - r, totalH + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
-            // 下辺（凸）
-            context.LineTo(new Point(18 + cw, totalH));
-            context.LineTo(new Point(15 + cw, totalH - c * 0.7));
-            context.LineTo(new Point(18, totalH - c * 0.7));
-            context.LineTo(new Point(15, totalH));
-            context.LineTo(new Point(r, totalH));
-            context.ArcTo(new Point(0, totalH - r), new Size(r, r), 0, false, SweepDirection.Clockwise);
+            // 下辺（凹み - 受け）
+            context.LineTo(new Point(18 + cw, totalH + offset));
+            context.LineTo(new Point(15 + cw, totalH + c * 0.7 + offset));
+            context.LineTo(new Point(18, totalH + c * 0.7 + offset));
+            context.LineTo(new Point(15, totalH + offset));
+            context.LineTo(new Point(r, totalH + offset));
+            context.ArcTo(new Point(0, totalH - r + offset), new Size(r, r), 0, false, SweepDirection.Clockwise);
 
             // 左辺
-            context.LineTo(new Point(0, r));
+            context.LineTo(new Point(0, r + offset));
 
             context.EndFigure(true);
         }
@@ -530,9 +769,54 @@ public class PuzzleBlock : ContentControl
             }
         }
 
+        // キャンバスのリサイズを要求
+        RequestCanvasResize();
+
         _snapCandidate = null;
         _snapType = SnapType.None;
         e.Handled = true;
+    }
+
+    private void RequestCanvasResize()
+    {
+        var mainView = this.FindAncestorOfType<UserControl>();
+        while (mainView == null && this.GetVisualParent() != null)
+        {
+            var parent = this.GetVisualParent();
+            mainView = parent as UserControl;
+            if (mainView == null)
+            {
+                // 親をたどってMainViewを探す
+                var view = parent?.GetType();
+                if (parent != null)
+                {
+                    try
+                    {
+                        var eventField = typeof(MainView).GetField("CanvasResizeNeededEvent",
+                            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+                        if (eventField != null)
+                        {
+                            var routedEvent = eventField.GetValue(null) as RoutedEvent;
+                            if (routedEvent != null)
+                            {
+                                RaiseEvent(new RoutedEventArgs(routedEvent));
+                                return;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        // 直接イベントを発生させる
+        var canvasResizeEvent = typeof(MainView).GetField("CanvasResizeNeededEvent",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)?.GetValue(null) as RoutedEvent;
+
+        if (canvasResizeEvent != null)
+        {
+            RaiseEvent(new RoutedEventArgs(canvasResizeEvent));
+        }
     }
 
     private void PerformSnap()
